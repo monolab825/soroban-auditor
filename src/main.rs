@@ -1,22 +1,17 @@
-use soroban_sdk::xdr::ScSpecEntry;
-use std::io::{self, Read};
 use std::rc::Rc;
-
+use std::io::{self};
 use clap::{App, Arg};
 
-use quote::{format_ident, quote};
-
-use std::fs::File;
 use auditor::analysis;
 use auditor::cfg::{Cfg, CfgBuildError};
 use auditor::fmt;
 use auditor::ssa;
 use auditor::structuring;
 use auditor::wasm;
+use auditor::soroban;
+use auditor::soroban::FunctionInfo;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
-use soroban_spec::read::{ from_wasm };
-use soroban_spec_rust::types::{generate_enum, generate_error_enum, generate_struct, generate_union, generate_type_ident};
 
 fn main() {
     let args = App::new("auditor")
@@ -31,11 +26,10 @@ fn main() {
                 .help("The wasm binary to decompile")
                 .required(true),
         )
-        .arg(Arg::with_name("function").help("The index of the function to decompile"))
+        .arg(Arg::with_name("function_name").help("The index of the function to decompile"))
         .get_matches();
 
     let file_path = args.value_of("file").unwrap();
-    let specs = read_contract_specs(file_path);
 
     let wasm = match wasm::Instance::from_file(file_path) {
         Ok(instance) => Rc::new(instance),
@@ -46,10 +40,11 @@ fn main() {
     };
 
     let show_graph = args.is_present("show-graph");
+    let spec_fns_result = &soroban::read_contract_specs(file_path);
 
     if let Some(func_index) = args.value_of("function_name") {
         let func_index = func_index.parse().unwrap();
-        match decompile_func(wasm, func_index, show_graph) {
+        match decompile_func(wasm, func_index, show_graph, spec_fns_result) {
             Ok(()) => (),
             Err(CfgBuildError::NoSuchFunc) => eprintln!("No function with index {}", func_index),
             Err(CfgBuildError::FuncIsImported) => {
@@ -59,72 +54,24 @@ fn main() {
     } else {
         for (i, func) in wasm.module().functions().iter().enumerate() {
             if !func.is_imported() {
-                eprintln!("Decompiling f{}", i);
-                decompile_func(Rc::clone(&wasm), i as u32, show_graph).unwrap();
+                let name = func.name();
+                soroban::find_function_in_specs(spec_fns_result, name);
+                eprintln!("Decompiling {}: index {}", name, i);
+                decompile_func(Rc::clone(&wasm), i as u32, show_graph, spec_fns_result).unwrap();
                 println!();
             }
         }
     }
 }
 
-fn read_contract_specs(file_path: &str) -> io::Result<Vec<ScSpecEntry>> {
-    let mut file = File::open(file_path)?;
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer)?;
-    let entries = from_wasm(&buffer).unwrap();
-
-    let mut spec_fns = Vec::new();
-    let mut spec_structs = Vec::new();
-    let mut spec_unions = Vec::new();
-    let mut spec_enums = Vec::new();
-    let mut spec_error_enums = Vec::new();
-    for s in entries.iter() {
-        match s {
-            ScSpecEntry::FunctionV0(f) => spec_fns.push(f),
-            ScSpecEntry::UdtStructV0(s) => spec_structs.push(s),
-            ScSpecEntry::UdtUnionV0(u) => spec_unions.push(u),
-            ScSpecEntry::UdtEnumV0(e) => spec_enums.push(e),
-            ScSpecEntry::UdtErrorEnumV0(e) => spec_error_enums.push(e),
-        }
-    }
-
-    let trait_name = "Contract";
-    let trait_ident = format_ident!("{}", trait_name);
-
-    let fns: Vec<_> = spec_fns
-        .iter()
-        .map(|s| {
-            let name = s.name.to_utf8_string().unwrap();
-            let fn_ident = format_ident!("{}", name);
-            let fn_inputs = s.inputs.iter().map(|input| {
-                let name = format_ident!("{}", input.name.to_utf8_string().unwrap());
-                let type_ident = generate_type_ident(&input.type_);
-                quote! { #name: #type_ident }
-            });
-            let fn_output = s
-                .outputs
-                .to_option()
-                .map(|t| generate_type_ident(&t))
-                .map(|t| quote! { -> #t });
-            quote! {
-                fn #fn_ident(env: soroban_sdk::Env, #(#fn_inputs),*) #fn_output 
-            }
-        })
-        .collect();
-
-    let structs = spec_structs.iter().map(|s| generate_struct(s));
-    let unions = spec_unions.iter().map(|s| generate_union(s));
-    let enums = spec_enums.iter().map(|s| generate_enum(s));
-    let error_enums = spec_error_enums.iter().map(|s| generate_error_enum(s)); 
-
-    Ok(entries)
-}
-
-fn decompile_func(wasm: Rc<wasm::Instance>, func_index: u32, print_graph: bool, specs) -> Result<(), CfgBuildError> {
+fn decompile_func(wasm: Rc<wasm::Instance>, func_index: u32, print_graph: bool, spec_fns_result: &io::Result<Vec<FunctionInfo>>) -> Result<(), CfgBuildError> {
     let mut cfg = Cfg::build(Rc::clone(&wasm), func_index)?;
     let mut def_use_map = ssa::transform_to_ssa(&mut cfg);
 
+    analysis::propagate_expressions(&mut cfg, &mut def_use_map);
+    analysis::eliminate_dead_code(&mut cfg, &mut def_use_map);
     ssa::transform_out_of_ssa(&mut cfg);
+
 
     if print_graph {
         println!("{}", cfg.dot_string());

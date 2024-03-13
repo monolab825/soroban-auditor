@@ -5,3 +5,4 @@ pub mod fmt;
 pub mod ssa;
 pub mod structuring;
 pub mod wasm;
+pub mod soroban;

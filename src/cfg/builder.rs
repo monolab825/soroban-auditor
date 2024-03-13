@@ -254,6 +254,7 @@ impl CfgBuilder {
             return Err(CfgBuildError::NoSuchFunc);
         };
 
+        //todo: spec_fns_result
         let code = func.instructions();
         let return_type = func.func_type().return_type();
         let mut label_stack = Vec::new();
