@@ -1,15 +1,15 @@
-use std::rc::Rc;
-use std::io::{self};
 use clap::{App, Arg};
+use std::io::{self};
+use std::rc::Rc;
 
 use auditor::analysis;
 use auditor::cfg::{Cfg, CfgBuildError};
 use auditor::fmt;
-use auditor::ssa;
-use auditor::structuring;
-use auditor::wasm;
 use auditor::soroban;
 use auditor::soroban::FunctionInfo;
+use auditor::ssa;
+use auditor::structuring;
+use auditor::wasm_wrapper::wasm;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -44,7 +44,9 @@ fn main() {
 
     if let Some(func_index) = args.value_of("function_name") {
         let func_index = func_index.parse().unwrap();
-        match decompile_func(wasm, func_index, show_graph, spec_fns_result) {
+        let name = "price";
+        let spec_fn_result = soroban::find_function_specs(spec_fns_result, name);
+        match decompile_func(wasm, func_index, show_graph, spec_fn_result) {
             Ok(()) => (),
             Err(CfgBuildError::NoSuchFunc) => eprintln!("No function with index {}", func_index),
             Err(CfgBuildError::FuncIsImported) => {
@@ -55,23 +57,27 @@ fn main() {
         for (i, func) in wasm.module().functions().iter().enumerate() {
             if !func.is_imported() {
                 let name = func.name();
-                soroban::find_function_in_specs(spec_fns_result, name);
+                let spec_fn_result = soroban::find_function_specs(spec_fns_result, name);
                 eprintln!("Decompiling {}: index {}", name, i);
-                decompile_func(Rc::clone(&wasm), i as u32, show_graph, spec_fns_result).unwrap();
+                decompile_func(Rc::clone(&wasm), i as u32, show_graph, spec_fn_result).unwrap();
                 println!();
             }
         }
     }
 }
 
-fn decompile_func(wasm: Rc<wasm::Instance>, func_index: u32, print_graph: bool, spec_fns_result: &io::Result<Vec<FunctionInfo>>) -> Result<(), CfgBuildError> {
-    let mut cfg = Cfg::build(Rc::clone(&wasm), func_index)?;
+fn decompile_func(
+    wasm: Rc<wasm::Instance>,
+    func_index: u32,
+    print_graph: bool,
+    spec_fn_result: Option<&FunctionInfo>,
+) -> Result<(), CfgBuildError> {
+    let mut cfg = Cfg::build(Rc::clone(&wasm), func_index, spec_fn_result)?;
     let mut def_use_map = ssa::transform_to_ssa(&mut cfg);
 
     analysis::propagate_expressions(&mut cfg, &mut def_use_map);
     analysis::eliminate_dead_code(&mut cfg, &mut def_use_map);
     ssa::transform_out_of_ssa(&mut cfg);
-
 
     if print_graph {
         println!("{}", cfg.dot_string());

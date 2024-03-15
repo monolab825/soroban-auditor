@@ -15,3 +15,4 @@ Building or installing soroban-auditor from source requires a working Rust Insta
 
 $ soroban-auditor example.wasm > example.dec
 
+Developers: stellarchain.io

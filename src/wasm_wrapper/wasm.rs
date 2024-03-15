@@ -1,4 +1,4 @@
-use bwasm::{InitExpr, LoadError, Module};
+use super::wasm_adapter::{InitExpr, LoadError, Module};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum TableElement {

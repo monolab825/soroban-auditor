@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::ssa::{cond::MappedExpr, Cond, Expr, Stmt, Var};
-use bwasm::{Module, ValueType};
+use crate::wasm_wrapper::wasm_adapter::{Module, ValueType};
 
 pub fn apply(code: &mut Vec<Stmt>, module: &Module, func_index: u32) -> Vec<(Var, ValueType)> {
     let mut renamer = Renamer::new(module, func_index);

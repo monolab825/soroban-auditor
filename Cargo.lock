@@ -40,14 +40,14 @@ dependencies = [
 name = "auditor"
 version = "0.1.1"
 dependencies = [
- "bwasm",
  "clap",
- "quote",
+ "parity-wasm 0.45.0",
  "replace_with",
  "slab",
  "soroban-sdk",
  "soroban-spec",
  "soroban-spec-rust",
+ "wasmi-validation",
  "z3 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "z3-sys 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -108,16 +108,6 @@ name = "bumpalo"
 version = "3.15.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ea184aa71bb362a1157c896979544cc23974e08fd265f29ea96b59f0b4a555b"
-
-[[package]]
-name = "bwasm"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d8f9601cb0f2454f80b212340470295350ddfd381297f5523e45c5c568fab53"
-dependencies = [
- "parity-wasm",
- "wasmi-validation",
-]
 
 [[package]]
 name = "bytes-lit"
@@ -695,6 +685,12 @@ name = "parity-wasm"
 version = "0.41.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ddfc878dac00da22f8f61e7af3157988424567ab01d9920b962ef7dcbd7cd865"
+
+[[package]]
+name = "parity-wasm"
+version = "0.45.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1ad0aff30c1da14b1254fcb2af73e1fa9a28670e584a626f53a369d0e157304"
 
 [[package]]
 name = "paste"
@@ -1348,7 +1344,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ea78c597064ba73596099281e2f4cfc019075122a65cdda3205af94f0b264d93"
 dependencies = [
- "parity-wasm",
+ "parity-wasm 0.41.0",
 ]
 
 [[package]]

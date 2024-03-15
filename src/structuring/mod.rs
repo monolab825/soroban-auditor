@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::cfg::{Cfg, Edge, EdgeCond, EdgeType};
 use crate::dominance::DomTree;
 use crate::ssa::{Cond, Expr, LoopKind, Stmt, Var};
-use bwasm::ValueType;
+use crate::wasm_wrapper::wasm_adapter::ValueType;
 
 mod condition_refinement;
 mod loop_refinement;

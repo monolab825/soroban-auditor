@@ -4,5 +4,5 @@ pub mod dominance;
 pub mod fmt;
 pub mod ssa;
 pub mod structuring;
-pub mod wasm;
 pub mod soroban;
+pub mod wasm_wrapper;

@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use crate::fmt;
-use crate::wasm::TableElement;
-use bwasm::ValueType;
+use crate::wasm_wrapper::wasm::TableElement;
+use crate::wasm_wrapper::wasm_adapter::ValueType;
 
 use super::Var;
 

@@ -2,9 +2,8 @@ use std::io::{self, Read};
 use soroban_sdk::xdr::ScSpecEntry;
 use std::fs::File;
 use std::fmt;
-use quote::format_ident;
 use soroban_spec::read::from_wasm;
-use soroban_spec_rust::types::{generate_enum, generate_error_enum, generate_struct, generate_union, generate_type_ident};
+use soroban_spec_rust::types::{generate_enum, generate_error_enum, generate_struct, generate_union};
 use soroban_sdk::xdr::ScSpecTypeDef;
 
 // Custom data structure to represent a function
@@ -16,9 +15,16 @@ pub struct FunctionInfo {
 }
 
 impl FunctionInfo {
-    // Public method to access the `name` field
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    pub fn inputs(&self) -> &[(String, String)] {
+        &self.inputs
+    }
+
+    pub fn output(&self) -> Option<&str> {
+        self.output.as_deref()
     }
 }
 
@@ -36,17 +42,13 @@ impl fmt::Display for FunctionInfo {
     }
 }
 
-pub fn find_function_in_specs(spec_fns_result: &io::Result<Vec<FunctionInfo>>, function_name_to_find: &str) {
+pub fn find_function_specs<'a>(spec_fns_result: &'a io::Result<Vec<FunctionInfo>>, function_name_to_find: &str) -> Option<&'a FunctionInfo> {
     // Use if let to handle the result
     if let Ok(spec_fns) = spec_fns_result {
-        if let Some(found_function) = spec_fns.iter().find(|&s| s.name() == function_name_to_find) {
-            println!("Found function specs : {}", found_function.name());
-        } else {
-            println!("Function specs not found: {}", function_name_to_find);
-        }
+        spec_fns.iter().find(|&s| s.name() == function_name_to_find)
     } else {
-        // Handle the error outside the match block
         eprintln!("Error reading contract specs: {}", spec_fns_result.as_ref().err().unwrap());
+        None
     }
 }
 
@@ -118,29 +120,29 @@ pub fn generate_type_ident_string(spec: &ScSpecTypeDef) -> String {
         ScSpecTypeDef::Address => "soroban_sdk::Address".to_string(),
         ScSpecTypeDef::String => "soroban_sdk::String".to_string(),
         ScSpecTypeDef::Option(o) => {
-            let value_ident = generate_type_ident(&o.value_type);
+            let value_ident = generate_type_ident_string(&o.value_type);
             format!("Option<{}>", value_ident)
         }
         ScSpecTypeDef::Result(r) => {
-            let ok_ident = generate_type_ident(&r.ok_type);
-            let error_ident = generate_type_ident(&r.error_type);
+            let ok_ident = generate_type_ident_string(&r.ok_type);
+            let error_ident = generate_type_ident_string(&r.error_type);
             format!("Result<{}, {}>", ok_ident, error_ident)
         }
         ScSpecTypeDef::Vec(v) => {
-            let element_ident = generate_type_ident(&v.element_type);
+            let element_ident = generate_type_ident_string(&v.element_type);
             format!("soroban_sdk::Vec<{}>", element_ident)
         }
         ScSpecTypeDef::Map(m) => {
-            let key_ident = generate_type_ident(&m.key_type);
-            let value_ident = generate_type_ident(&m.value_type);
+            let key_ident = generate_type_ident_string(&m.key_type);
+            let value_ident = generate_type_ident_string(&m.value_type);
             format!("soroban_sdk::Map<{}, {}>", key_ident, value_ident)
         }
         ScSpecTypeDef::Tuple(t) => {
-            let type_idents: Vec<_> = t.value_types.iter().map(|ty| generate_type_ident(ty)).collect();
+            let type_idents: Vec<_> = t.value_types.iter().map(|ty| generate_type_ident_string(ty)).collect();
             format!("({})", type_idents.iter().map(ToString::to_string).collect::<Vec<_>>().join(", "))
         }
         ScSpecTypeDef::BytesN(b) => format!("soroban_sdk::BytesN<{}>", b.n),
-        ScSpecTypeDef::Udt(u) => format_ident!("{}", u.name.to_utf8_string().unwrap()).to_string(),
+        ScSpecTypeDef::Udt(u) => format!("{}", u.name.to_utf8_string().unwrap()).to_string(),
         ScSpecTypeDef::Void => "()".to_string(),
         ScSpecTypeDef::Timepoint => "soroban_sdk::Timepoint".to_string(),
         ScSpecTypeDef::Duration => "soroban_sdk::Duration".to_string(),

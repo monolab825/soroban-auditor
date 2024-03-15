@@ -1,8 +1,8 @@
 use std::rc::Rc;
 
 use crate::ssa::{Stmt, Var};
-use crate::wasm;
-use bwasm::{Function, Module, ValueType};
+use crate::wasm_wrapper::wasm;
+use crate::wasm_wrapper::wasm_adapter::{Function, Module, ValueType};
 
 pub trait CodeDisplay {
     fn fmt_code(&self, f: &mut CodeWriter);
