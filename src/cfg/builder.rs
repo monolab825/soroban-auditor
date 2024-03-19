@@ -1,3 +1,4 @@
+use crate::wasm_wrapper::wasm_adapter::ExtendedValueType;
 use crate::{soroban::FunctionInfo, wasm_wrapper::wasm};
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -254,12 +255,8 @@ impl CfgBuilder {
             return Err(CfgBuildError::NoSuchFunc);
         };
 
-        let spec = spec_fns_result;
-        let return_type = if let Some(spec) = spec {
-            spec.output;
-        } else {
-            func.func_type().return_type()
-        };
+        let spec = spec_fn_result.expect("Error");
+        let output = spec.output().expect("Error output");
 
         //todo: spec_fns_result
         let code = func.instructions();

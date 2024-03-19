@@ -13,6 +13,37 @@ pub use wasmi_validation::Error as ValidationError;
 
 pub const PAGE_SIZE: u32 = 64 * 1024; // 64 KiB
 
+#[derive(Clone, Debug, PartialEq, Hash, Eq)]
+pub struct ExtendedValueType {
+    value_type: ValueType,
+    type_str: String,
+}
+
+impl ExtendedValueType {
+    // Constructor for the ExtendedValueType
+    pub fn new(value_type: ValueType, type_str: &str) -> Self {
+        ExtendedValueType {
+            value_type,
+            type_str: type_str.to_string(),
+        }
+    }
+
+    // Getter methods for accessing fields
+    pub fn value_type(&self) -> ValueType {
+        self.value_type
+    }
+
+    pub fn type_str(&self) -> &str {
+        &self.type_str
+    }
+}
+
+impl fmt::Display for ExtendedValueType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Type: {:?}, Name: {}", self.value_type, self.type_str)
+    }
+}
+
 #[derive(Debug)]
 pub enum LoadError {
     SerializationError(SerializationError),

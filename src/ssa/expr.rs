@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::fmt;
 use crate::wasm_wrapper::wasm::TableElement;
-use crate::wasm_wrapper::wasm_adapter::ValueType;
+use crate::wasm_wrapper::wasm_adapter::{ValueType, self};
 
 use super::Var;
 
@@ -481,7 +481,7 @@ impl Expr {
         }
     }
 
-    pub fn result_type(&self, module: &bwasm::Module, var_types: &HashMap<Var, ValueType>) -> ValueType {
+    pub fn result_type(&self, module: &wasm_adapter::Module, var_types: &HashMap<Var, ValueType>) -> ValueType {
         use Expr::*;
         use ValueType::*;
         match self {
