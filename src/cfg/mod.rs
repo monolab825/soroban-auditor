@@ -132,8 +132,8 @@ impl Cfg {
         format!("digraph G {{\n{}\n\n\tstart -> 0:n\n{}\n}}", nodes, edges)
     }
 
-    pub fn build(wasm: Rc<wasm::Instance>, func_index: u32, spec_fns_result: Option<&FunctionInfo>) -> Result<Cfg, CfgBuildError> {
-        builder::build(wasm, func_index, spec_fns_result)
+    pub fn build(wasm: Rc<wasm::Instance>, func_index: u32) -> Result<Cfg, CfgBuildError> {
+        builder::build(wasm, func_index)
     }
 
     pub fn region_successors(&self, region_nodes: &HashSet<NodeId>) -> HashSet<NodeId> {

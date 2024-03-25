@@ -1,3 +1,4 @@
+use crate::soroban::FunctionInfo;
 use std::rc::Rc;
 
 use crate::ssa::{Stmt, Var};
@@ -118,22 +119,33 @@ impl CodeWriter {
         self.output.write_fmt(args);
     }
 
-    pub fn write_func(&mut self, func_index: u32, decls: &[(Var, ValueType)], code: &[Stmt]) {
-        writeln!(self, "// Function {}", func_index);
-
+    pub fn write_func(&mut self, 
+        func_index: u32, 
+        decls: &[(Var, ValueType)], 
+        code: &[Stmt],     
+        spec_fn_result: Option<&FunctionInfo>,
+    ) {
+        let spec = spec_fn_result.unwrap_or_else(|| FunctionInfo::default());
         let func = self.func();
-        let params = func
-            .params()
+
+        let params = spec
+            .inputs()
             .iter()
             .enumerate()
-            .map(|(i, t)| format!("{} arg_{}", t, i))
+            .map(|(i, param)| {
+                format!(
+                    "{}: {}",
+                    param.name(),
+                    param.type_ident().type_str()
+                )
+            })
             .collect::<Vec<_>>()
             .join(", ");
 
         let func_header = if let Some(ret_type) = func.return_type() {
-            format!("fn {}({}) -> {} {{", func.name(), params, ret_type)
+            format!("pub fn {}(env: Env, {}) -> {} {{", func.name(), params, ret_type)
         } else {
-            format!("fn {}({}) {{", func.name(), params)
+            format!("pub fn {}({}) {{", func.name(), params)
         };
 
         self.write(func_header.as_str());
@@ -141,7 +153,7 @@ impl CodeWriter {
 
         for (var, var_type) in decls {
             self.newline();
-            write!(self, "{} var_{};", var_type, var);
+            write!(self, "let {} var_{};", var_type, var);
         }
         if !decls.is_empty() {
             self.newline();

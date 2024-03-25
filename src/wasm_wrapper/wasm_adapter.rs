@@ -1,3 +1,5 @@
+use crate::soroban::take_common_module;
+use crate::soroban::env_common_modules_result;
 use core::convert::{TryFrom, TryInto};
 use core::fmt;
 use core::iter::{self, FromIterator};
@@ -363,9 +365,7 @@ impl Module {
             Ok(module) => module,
             Err((_, module)) => module,
         };
-
         let types = get_types(&mut module);
-
         let mut globals = Vec::new();
         let mut functions = Vec::new();
         let mut tables = Vec::new();
@@ -373,8 +373,19 @@ impl Module {
         let mut imports = Vec::new();
         let mut exports = Vec::new();
 
+        let modules = match env_common_modules_result() {
+            Ok(modules) => modules,
+            Err(err) => {
+                eprintln!("Error retrieving common modules: {}", err);
+                return Module::default(); 
+            }
+        };
+
         if let Some(import_sec) = module.import_section_mut() {
             for entry in import_sec.entries() {
+                if modules.is_empty() {
+                    let module = take_common_module(modules, entry.module(), entry.field());
+                }
                 let name = format!("{}.{}", entry.module(), entry.field());
                 match entry.external() {
                     External::Function(type_ref) => {

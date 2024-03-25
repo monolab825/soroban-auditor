@@ -1,5 +1,4 @@
 use clap::{App, Arg};
-use std::io::{self};
 use std::rc::Rc;
 
 use auditor::analysis;
@@ -70,9 +69,10 @@ fn decompile_func(
     wasm: Rc<wasm::Instance>,
     func_index: u32,
     print_graph: bool,
-    spec_fn_result: Option<&FunctionInfo>,
+    spec_fn_result: Option<&FunctionInfo>
 ) -> Result<(), CfgBuildError> {
-    let mut cfg = Cfg::build(Rc::clone(&wasm), func_index, spec_fn_result)?;
+    let mut cfg = Cfg::build(Rc::clone(&wasm), func_index)?;
+
     let mut def_use_map = ssa::transform_to_ssa(&mut cfg);
 
     analysis::propagate_expressions(&mut cfg, &mut def_use_map);
@@ -84,6 +84,6 @@ fn decompile_func(
     }
 
     let (decls, code) = structuring::structure(cfg);
-    fmt::CodeWriter::printer(wasm, func_index).write_func(func_index, &decls, &code);
+    fmt::CodeWriter::printer(wasm, func_index).write_func(func_index, &decls, &code, spec_fn_result);
     Ok(())
 }

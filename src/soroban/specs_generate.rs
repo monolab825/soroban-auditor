@@ -15,12 +15,34 @@ pub struct ExtendedFunctionParam {
     type_ident: ExtendedValueType,
 }
 
+impl ExtendedFunctionParam {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn type_ident(&self) -> &ExtendedValueType {
+        &self.type_ident
+    }
+}
+
+impl fmt::Display for ExtendedFunctionParam {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}: {}", self.name, self.type_ident)
+    }
+}
+
 // Updated struct to represent function return type with extended types
 #[derive(Debug)]
 pub struct ExtendedFunctionReturnType {
     type_ident: ExtendedValueType,
 }
 
+impl fmt::Display for ExtendedFunctionReturnType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Implement formatting logic here
+         write!(f, "Formatted representation of ExtendedFunctionReturnType")
+    }
+}
 // Updated struct to represent function information with extended types
 #[derive(Debug)]
 pub struct FunctionInfo {
@@ -31,6 +53,16 @@ pub struct FunctionInfo {
 
 // Implementation of FunctionInfo methods
 impl FunctionInfo {
+
+    pub fn default() -> &'static Self {
+        static DEFAULT_FUNCTION_INFO: FunctionInfo = FunctionInfo {
+            name: String::new(),
+            inputs: Vec::new(),
+            output: None,
+        };
+        &DEFAULT_FUNCTION_INFO
+    }
+
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -134,7 +166,7 @@ pub fn generate_type_ident_string(spec: &ScSpecTypeDef) -> ExtendedValueType {
         ScSpecTypeDef::U128 => ExtendedValueType::new(ValueType::I64, "u128"),
         ScSpecTypeDef::I128 => ExtendedValueType::new(ValueType::I64, "i128"),
         ScSpecTypeDef::Bool => ExtendedValueType::new(ValueType::I32, "bool"),
-        ScSpecTypeDef::Symbol => ExtendedValueType::new(ValueType::I32, "soroban_sdk::Symbol"),
+        ScSpecTypeDef::Symbol => ExtendedValueType::new(ValueType::I64, "soroban_sdk::Symbol"),
         ScSpecTypeDef::Error => ExtendedValueType::new(ValueType::I32, "soroban_sdk::Error"),
         ScSpecTypeDef::Bytes => ExtendedValueType::new(ValueType::I32, "soroban_sdk::Bytes"),
         ScSpecTypeDef::Address => ExtendedValueType::new(ValueType::I32, "soroban_sdk::Address"),

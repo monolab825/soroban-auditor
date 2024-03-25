@@ -1,5 +1,4 @@
-use crate::wasm_wrapper::wasm_adapter::ExtendedValueType;
-use crate::{soroban::FunctionInfo, wasm_wrapper::wasm};
+use crate::wasm_wrapper::wasm;
 use std::collections::HashSet;
 use std::rc::Rc;
 
@@ -245,7 +244,12 @@ impl CfgBuilder {
 
     /// Build the cfg for the function `func_index` in `module`
     #[allow(clippy::cognitive_complexity)]
-    fn build(mut self, wasm: Rc<wasm::Instance>, func_index: u32, spec_fn_result: Option<&FunctionInfo>) -> Result<Cfg, CfgBuildError> {
+    fn build(
+        mut self, 
+        wasm: Rc<wasm::Instance>, 
+        func_index: u32)
+    -> Result<Cfg, CfgBuildError> {
+
         let func = if let Some(func) = wasm.module().get_func(func_index) {
             if func.is_imported() {
                 return Err(CfgBuildError::FuncIsImported);
@@ -255,13 +259,8 @@ impl CfgBuilder {
             return Err(CfgBuildError::NoSuchFunc);
         };
 
-        let spec = spec_fn_result.expect("Error");
-        let output = spec.output().expect("Error output");
-
-        //todo: spec_fns_result
         let code = func.instructions();
         let return_type = func.func_type().return_type();
-
         let mut label_stack = Vec::new();
 
         self.init_locals(func);
@@ -803,6 +802,9 @@ impl CfgBuilder {
     }
 }
 
-pub fn build(wasm: Rc<wasm::Instance>, func_index: u32, spec_fn_result: Option<&FunctionInfo>) -> Result<Cfg, CfgBuildError> {
-    CfgBuilder::new().build(wasm, func_index, spec_fn_result)
+pub fn build(
+    wasm: Rc<wasm::Instance>, 
+    func_index: u32, 
+) -> Result<Cfg, CfgBuildError> {
+    CfgBuilder::new().build(wasm, func_index)
 }
