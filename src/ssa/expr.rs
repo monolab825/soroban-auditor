@@ -728,7 +728,7 @@ impl fmt::CodeDisplay for Expr {
 
             Expr::GetLocal(var) => {
                 if var.index < f.func().param_count() {
-                    write!(f, "arg_{}", var);
+                    write!(f, "xxx2_arg_{}", var);
                 } else {
                     write!(f, "var_{}", var);
                 }

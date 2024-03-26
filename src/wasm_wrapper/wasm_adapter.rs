@@ -5,6 +5,7 @@ use core::fmt;
 use core::iter::{self, FromIterator};
 
 use parity_wasm::elements as pwasm;
+use serde_json::Value;
 
 pub use parity_wasm::elements::{
     BlockType, BrTableData, CustomSection, ExportEntry, External, GlobalType, ImportEntry,
@@ -355,11 +356,12 @@ pub struct Module {
 impl Module {
     pub fn from_file<P: AsRef<::std::path::Path>>(path: P) -> Result<Self, LoadError> {
         let module = parity_wasm::deserialize_file(path)?;
+        let common_modules = env_common_modules_result().unwrap();
         wasmi_validation::validate_module::<wasmi_validation::PlainValidator>(&module)?;
-        Ok(Module::from_parity_module(module))
+        Ok(Module::from_parity_module(module, common_modules))
     }
 
-    fn from_parity_module(module: pwasm::Module) -> Self {
+    fn from_parity_module(module: pwasm::Module, common_modules: Vec<Value>) -> Self {
         // TODO: What happens when multiple functions have the same name?
         let mut module = match module.parse_names() {
             Ok(module) => module,
@@ -373,19 +375,9 @@ impl Module {
         let mut imports = Vec::new();
         let mut exports = Vec::new();
 
-        let modules = match env_common_modules_result() {
-            Ok(modules) => modules,
-            Err(err) => {
-                eprintln!("Error retrieving common modules: {}", err);
-                return Module::default(); 
-            }
-        };
-
         if let Some(import_sec) = module.import_section_mut() {
             for entry in import_sec.entries() {
-                if modules.is_empty() {
-                    let module = take_common_module(modules, entry.module(), entry.field());
-                }
+                let module = take_common_module(&common_modules, entry.module(), entry.field());
                 let name = format!("{}.{}", entry.module(), entry.field());
                 match entry.external() {
                     External::Function(type_ref) => {

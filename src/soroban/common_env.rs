@@ -1,12 +1,11 @@
 use std::{
     fs::File,
-    io::BufReader,
-    error::Error
+    io::BufReader
 };
 
 use serde_json::Value;
 
-pub fn read_env_common_from_file() -> Result<Value, Box<dyn Error>> {
+pub fn read_env_common_from_file() -> Result<Value, Box<dyn std::error::Error>> {
     let file = File::open("env.json")?;
     let reader = BufReader::new(file);
     let u = serde_json::from_reader(reader)?;
@@ -15,7 +14,6 @@ pub fn read_env_common_from_file() -> Result<Value, Box<dyn Error>> {
 }
 
 pub fn env_common_modules_result() -> Result<Vec<Value>, Box<dyn std::error::Error>> {
-    // Load common environment imports from file
     let common_env_imports = read_env_common_from_file()?;
     if let Some(modules) = common_env_imports.get("modules").and_then(Value::as_array) {
         let cloned_modules: Vec<Value> = modules.clone();
@@ -25,7 +23,7 @@ pub fn env_common_modules_result() -> Result<Vec<Value>, Box<dyn std::error::Err
     }
 }
 
-pub fn take_common_module(modules: Vec<Value>, module_name: &str, field_name: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn take_common_module(modules: &Vec<Value>, module_name: &str, field_name: &str) -> Result<(), Box<dyn std::error::Error>> {
     // Iterate over each module
     for module in modules {
         // Check if the module name matches
