@@ -31,7 +31,6 @@ impl ExtendedValueType {
         }
     }
 
-    // Getter methods for accessing fields
     pub fn value_type(&self) -> ValueType {
         self.value_type
     }
@@ -78,15 +77,16 @@ impl From<ValidationError> for LoadError {
 pub struct FunctionType {
     type_ref: u32,
     params: Vec<ValueType>,
-    return_type: Option<ValueType>,
+    return_type: Option<ExtendedValueType>,
 }
 
 impl FunctionType {
     fn new(type_ref: u32, func_type: &mut pwasm::FunctionType) -> Self {
+        let old = func_type.return_type_mut();
         FunctionType {
             type_ref,
             params: take(func_type.params_mut()),
-            return_type: take(func_type.return_type_mut()),
+            return_type: take(old),
         }
     }
     pub const fn type_ref(&self) -> u32 {
@@ -98,7 +98,7 @@ impl FunctionType {
     pub fn param_count(&self) -> u32 {
         self.params.len() as u32
     }
-    pub const fn return_type(&self) -> Option<ValueType> {
+    pub const fn return_type(&self) -> Option<ExtendedValueType> {
         self.return_type
     }
 }
@@ -169,7 +169,7 @@ impl Function {
     pub fn param_count(&self) -> u32 {
         self.func_type.param_count()
     }
-    pub const fn return_type(&self) -> Option<ValueType> {
+    pub const fn return_type(&self) -> Option<ExtendedValueType> {
         self.func_type().return_type()
     }
     pub const fn is_imported(&self) -> bool {
@@ -377,8 +377,14 @@ impl Module {
 
         if let Some(import_sec) = module.import_section_mut() {
             for entry in import_sec.entries() {
-                let module = take_common_module(&common_modules, entry.module(), entry.field());
-                let name = format!("{}.{}", entry.module(), entry.field());
+                let module_result = take_common_module(&common_modules, entry.module(), entry.field());
+                let name  = match module_result {
+                    Ok(module) => format!("{}.{}", module.module_name, module.function_name),
+                    Err(err) => {
+                        eprintln!("Error: {}", err);
+                        format!("{}.{}", entry.module(), entry.field())
+                    }
+                };
                 match entry.external() {
                     External::Function(type_ref) => {
                         let func_type = types[*type_ref as usize].clone();

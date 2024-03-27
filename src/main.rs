@@ -4,8 +4,6 @@ use std::rc::Rc;
 use auditor::analysis;
 use auditor::cfg::{Cfg, CfgBuildError};
 use auditor::fmt;
-use auditor::soroban;
-use auditor::soroban::FunctionInfo;
 use auditor::ssa;
 use auditor::structuring;
 use auditor::wasm_wrapper::wasm;

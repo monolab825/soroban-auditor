@@ -1,3 +1,4 @@
+use crate::soroban;
 use crate::soroban::FunctionInfo;
 use std::rc::Rc;
 
@@ -99,8 +100,8 @@ impl CodeWriter {
         self.wasm.module()
     }
 
-    pub fn specs_fns(&self) -> &Option<FunctionInfo>{
-        self.wasm.spec_fn_result()
+    pub fn specs_fns(&self) -> &Vec<FunctionInfo>{
+        self.wasm.spec_fns()
     }
 
     pub fn func(&self) -> &Function {
@@ -128,24 +129,46 @@ impl CodeWriter {
         decls: &[(Var, ValueType)], 
         code: &[Stmt],     
     ) {
-        let spec = self.specs_fns().clone().unwrap();
         let func = self.func();
+        let spec_fns = soroban::find_function_specs(self.specs_fns(), func.name());
+        let params = match  spec_fns {
+            Some(spec) => {
+                let params = spec 
+                .inputs()
+                .iter()
+                .enumerate()
+                .map(|(i, param)| {
+                    format!(
+                        "{}: {}",
+                        param.name(),
+                        param.type_ident().type_str()
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+                params
+            }
+            None => {
+                let params = func
+                .params()
+                .iter()
+                .enumerate()
+                .map(|(i, t)| format!("{} arg_{}", t, i))
+                .collect::<Vec<_>>()
+                .join(", ");
+                params
+            }, 
+        };
 
-        let params = spec
-            .inputs()
-            .iter()
-            .enumerate()
-            .map(|(i, param)| {
-                format!(
-                    "{}: {}",
-                    param.name(),
-                    param.type_ident().type_str()
-                )
-            })
-            .collect::<Vec<_>>()
-            .join(", ");
+        let return_type = match spec_fns {
+            Some(spec) => {
+                let output = spec.output().unwrap();
+                output.type_ident().value_type();
+            }
+            None => func.return_type()
+        };
 
-        let func_header = if let Some(ret_type) = func.return_type() {
+        let func_header = if let Some(ret_type) = return_type {
             format!("pub fn {}(env: Env, {}) -> {} {{", func.name(), params, ret_type)
         } else {
             format!("pub fn {}({}) {{", func.name(), params)
@@ -153,14 +176,6 @@ impl CodeWriter {
 
         self.write(func_header.as_str());
         self.indent();
-
-        for (var, var_type) in decls {
-            self.newline();
-            write!(self, "let {} var_{};", var_type, var);
-        }
-        if !decls.is_empty() {
-            self.newline();
-        }
 
         self.write(&code[..]);
         self.dedent();

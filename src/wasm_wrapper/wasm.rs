@@ -13,22 +13,22 @@ pub struct Table {
     pub elements: Vec<TableElement>,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(PartialEq, Debug)]
 pub struct Instance {
     module: Module,
     tables: Vec<Table>,
-    spec_fn_result: Option<FunctionInfo>
+    spec_fns: Vec<FunctionInfo>,
 }
 
 impl Instance {
     pub fn from_file<P: AsRef<::std::path::Path>>(path: P) -> Result<Self, LoadError> {
         let module = Module::from_file(&path)?;
-        let spec_fns_result = &soroban::read_contract_specs(&path);
-        let spec_fn_result = soroban::find_function_specs(&spec_fns_result, "hello");
+        let spec_fns_result = soroban::read_contract_specs(&path).map_err(|err| LoadError::ValidationError(wasmi_validation::Error("Hello".to_string())))?;
+
         Ok(Self {
             tables: init_tables(&module),
             module,
-            spec_fn_result: spec_fn_result.cloned()
+            spec_fns: spec_fns_result
         })
     }
     pub const fn module(&self) -> &Module {
@@ -37,8 +37,8 @@ impl Instance {
     pub fn tables(&self) -> &[Table] {
         &self.tables
     }
-    pub fn spec_fn_result(&self) -> &Option<FunctionInfo> {
-        &self.spec_fn_result
+     pub fn spec_fns(&self) -> &Vec<FunctionInfo> {
+        &self.spec_fns
     }
 }
 

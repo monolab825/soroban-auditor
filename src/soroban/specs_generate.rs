@@ -1,3 +1,7 @@
+use soroban_spec_rust::types::generate_error_enum;
+use soroban_spec_rust::types::generate_enum;
+use soroban_spec_rust::types::generate_union;
+use soroban_spec_rust::types::generate_struct;
 use parity_wasm::elements::ValueType;
 use crate::wasm_wrapper::wasm_adapter::ExtendedValueType;
 use std::io::{self, Read};
@@ -35,6 +39,12 @@ impl fmt::Display for ExtendedFunctionParam {
 #[derive(Clone, PartialEq, Debug)]
 pub struct ExtendedFunctionReturnType {
     type_ident: ExtendedValueType,
+}
+
+impl ExtendedFunctionReturnType {
+    pub fn type_ident(&self) -> &ExtendedValueType {
+        &self.type_ident
+    }
 }
 
 impl fmt::Display for ExtendedFunctionReturnType {
@@ -94,17 +104,11 @@ impl fmt::Display for FunctionInfo {
     }
 }
 
-pub fn find_function_specs<'a>(spec_fns_result: &'a io::Result<Vec<FunctionInfo>>, function_name_to_find: &str) -> Option<&'a FunctionInfo> {
-    // Use if let to handle the result
-    if let Ok(spec_fns) = spec_fns_result {
-        spec_fns.iter().find(|&s| s.name() == function_name_to_find)
-    } else {
-        eprintln!("Error reading contract specs: {}", spec_fns_result.as_ref().err().unwrap());
-        None
-    }
+pub fn find_function_specs<'a>(spec_fns_result: &'a Vec<FunctionInfo>, function_name_to_find: &str) -> Option<&'a FunctionInfo> {
+    spec_fns_result.iter().find(|&s| s.name() == function_name_to_find)
 }
 
-pub fn read_contract_specs<P: AsRef<::std::path::Path>>(file_path: P) -> io::Result<Vec<FunctionInfo>> {
+pub fn read_contract_specs<P: AsRef<::std::path::Path>>(file_path: P) -> std::io::Result<Vec<FunctionInfo>> {
     let mut file = File::open(file_path)?;
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)?;
@@ -115,45 +119,47 @@ pub fn read_contract_specs<P: AsRef<::std::path::Path>>(file_path: P) -> io::Res
     let mut spec_unions = Vec::new();
     let mut spec_enums = Vec::new();
     let mut spec_error_enums = Vec::new();
+
     for s in entries.iter() {
         match s {
-            ScSpecEntry::FunctionV0(f) => spec_fns.push(f),
-            ScSpecEntry::UdtStructV0(s) => spec_structs.push(s),
-            ScSpecEntry::UdtUnionV0(u) => spec_unions.push(u),
-            ScSpecEntry::UdtEnumV0(e) => spec_enums.push(e),
-            ScSpecEntry::UdtErrorEnumV0(e) => spec_error_enums.push(e),
+            ScSpecEntry::FunctionV0(f) => {
+                let name = f.name.to_utf8_string().unwrap();
+                let inputs: Vec<_> = f.inputs.iter().map(|input| {
+                    let name = input.name.to_utf8_string().unwrap();
+                    let type_ident = generate_type_ident_string(&input.type_);
+                    ExtendedFunctionParam { name, type_ident }
+                }).collect();
+
+                let output = f.outputs
+                    .to_option()
+                    .map(|t| ExtendedFunctionReturnType { type_ident: generate_type_ident_string(&t) });
+
+                spec_fns.push(FunctionInfo {
+                    name,
+                    inputs,
+                    output,
+                });
+            },
+            ScSpecEntry::UdtStructV0(s) => {
+                let struct_info = generate_struct(s);
+                spec_structs.push(struct_info);
+            },
+            ScSpecEntry::UdtUnionV0(u) => {
+                let union_info = generate_union(u);
+                spec_unions.push(union_info);
+            },
+            ScSpecEntry::UdtEnumV0(e) => {
+                let enum_info = generate_enum(e);
+                spec_enums.push(enum_info);
+            },
+            ScSpecEntry::UdtErrorEnumV0(e) => {
+                let error_enum_info = generate_error_enum(e);
+                spec_error_enums.push(error_enum_info);
+            },
         }
     }
 
-    let fns: Vec<_> = spec_fns
-        .iter()
-        .map(|s| {
-            let name = s.name.to_utf8_string().unwrap();
-            let inputs: Vec<_> = s.inputs.iter().map(|input| {
-                let name = input.name.to_utf8_string().unwrap();
-                let type_ident = generate_type_ident_string(&input.type_);
-                ExtendedFunctionParam { name, type_ident }
-            }).collect();
-
-            let output = s
-                .outputs
-                .to_option()
-                .map(|t| ExtendedFunctionReturnType { type_ident: generate_type_ident_string(&t) });
-
-            FunctionInfo {
-                name,
-                inputs,
-                output,
-            }
-        })
-        .collect();
-
-    // let structs = spec_structs.iter().map(|s| generate_struct(s));
-    // let unions = spec_unions.iter().map(|s| generate_union(s));
-    // let enums = spec_enums.iter().map(|s| generate_enum(s));
-    // let error_enums = spec_error_enums.iter().map(|s| generate_error_enum(s)); 
-
-    Ok(fns)
+    Ok(spec_fns)
 }
 
 pub fn generate_type_ident_string(spec: &ScSpecTypeDef) -> ExtendedValueType {
