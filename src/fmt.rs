@@ -99,6 +99,10 @@ impl CodeWriter {
         self.wasm.module()
     }
 
+    pub fn specs_fns(&self) -> &Option<FunctionInfo>{
+        self.wasm.spec_fn_result()
+    }
+
     pub fn func(&self) -> &Function {
         self.wasm.module().func(self.func_index)
     }
@@ -123,9 +127,8 @@ impl CodeWriter {
         func_index: u32, 
         decls: &[(Var, ValueType)], 
         code: &[Stmt],     
-        spec_fn_result: Option<&FunctionInfo>,
     ) {
-        let spec = spec_fn_result.unwrap_or_else(|| FunctionInfo::default());
+        let spec = self.specs_fns().clone().unwrap();
         let func = self.func();
 
         let params = spec

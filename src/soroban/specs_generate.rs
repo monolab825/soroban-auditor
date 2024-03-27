@@ -9,7 +9,7 @@ use soroban_spec::read::from_wasm;
 use soroban_sdk::xdr::ScSpecTypeDef;
 
 // Updated struct to represent function parameters with extended types
-#[derive(Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct ExtendedFunctionParam {
     name: String,
     type_ident: ExtendedValueType,
@@ -32,7 +32,7 @@ impl fmt::Display for ExtendedFunctionParam {
 }
 
 // Updated struct to represent function return type with extended types
-#[derive(Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct ExtendedFunctionReturnType {
     type_ident: ExtendedValueType,
 }
@@ -44,7 +44,7 @@ impl fmt::Display for ExtendedFunctionReturnType {
     }
 }
 // Updated struct to represent function information with extended types
-#[derive(Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct FunctionInfo {
     name: String,
     inputs: Vec<ExtendedFunctionParam>,
@@ -104,7 +104,7 @@ pub fn find_function_specs<'a>(spec_fns_result: &'a io::Result<Vec<FunctionInfo>
     }
 }
 
-pub fn read_contract_specs(file_path: &str) -> io::Result<Vec<FunctionInfo>> {
+pub fn read_contract_specs<P: AsRef<::std::path::Path>>(file_path: P) -> io::Result<Vec<FunctionInfo>> {
     let mut file = File::open(file_path)?;
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)?;

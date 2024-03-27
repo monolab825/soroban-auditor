@@ -1,3 +1,5 @@
+use crate::soroban;
+use crate::soroban::FunctionInfo;
 use super::wasm_adapter::{InitExpr, LoadError, Module};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -15,14 +17,18 @@ pub struct Table {
 pub struct Instance {
     module: Module,
     tables: Vec<Table>,
+    spec_fn_result: Option<FunctionInfo>
 }
 
 impl Instance {
     pub fn from_file<P: AsRef<::std::path::Path>>(path: P) -> Result<Self, LoadError> {
-        let module = Module::from_file(path)?;
+        let module = Module::from_file(&path)?;
+        let spec_fns_result = &soroban::read_contract_specs(&path);
+        let spec_fn_result = soroban::find_function_specs(&spec_fns_result, "hello");
         Ok(Self {
             tables: init_tables(&module),
             module,
+            spec_fn_result: spec_fn_result.cloned()
         })
     }
     pub const fn module(&self) -> &Module {
@@ -30,6 +36,9 @@ impl Instance {
     }
     pub fn tables(&self) -> &[Table] {
         &self.tables
+    }
+    pub fn spec_fn_result(&self) -> &Option<FunctionInfo> {
+        &self.spec_fn_result
     }
 }
 

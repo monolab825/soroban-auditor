@@ -39,13 +39,10 @@ fn main() {
     };
 
     let show_graph = args.is_present("show-graph");
-    let spec_fns_result = &soroban::read_contract_specs(file_path);
 
     if let Some(func_index) = args.value_of("function_name") {
         let func_index = func_index.parse().unwrap();
-        let name = "price";
-        let spec_fn_result = soroban::find_function_specs(spec_fns_result, name);
-        match decompile_func(wasm, func_index, show_graph, spec_fn_result) {
+        match decompile_func(wasm, func_index, show_graph) {
             Ok(()) => (),
             Err(CfgBuildError::NoSuchFunc) => eprintln!("No function with index {}", func_index),
             Err(CfgBuildError::FuncIsImported) => {
@@ -56,9 +53,8 @@ fn main() {
         for (i, func) in wasm.module().functions().iter().enumerate() {
             if !func.is_imported() {
                 let name = func.name();
-                let spec_fn_result = soroban::find_function_specs(spec_fns_result, name);
                 eprintln!("Decompiling {}: index {}", name, i);
-                decompile_func(Rc::clone(&wasm), i as u32, show_graph, spec_fn_result).unwrap();
+                decompile_func(Rc::clone(&wasm), i as u32, show_graph).unwrap();
                 println!();
             }
         }
@@ -69,7 +65,6 @@ fn decompile_func(
     wasm: Rc<wasm::Instance>,
     func_index: u32,
     print_graph: bool,
-    spec_fn_result: Option<&FunctionInfo>
 ) -> Result<(), CfgBuildError> {
     let mut cfg = Cfg::build(Rc::clone(&wasm), func_index)?;
 
@@ -84,6 +79,6 @@ fn decompile_func(
     }
 
     let (decls, code) = structuring::structure(cfg);
-    fmt::CodeWriter::printer(wasm, func_index).write_func(func_index, &decls, &code, spec_fn_result);
+    fmt::CodeWriter::printer(wasm, func_index).write_func(func_index, &decls, &code);
     Ok(())
 }
