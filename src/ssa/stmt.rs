@@ -305,6 +305,7 @@ impl fmt::CodeDisplay for Stmt {
                 f.write(");");
             }
             Stmt::If(cond, then_branch) => {
+                f.newline();
                 f.write("if ");
                 f.write(cond);
                 f.write(" {");
