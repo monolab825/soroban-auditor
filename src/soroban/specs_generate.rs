@@ -164,35 +164,35 @@ pub fn read_contract_specs<P: AsRef<::std::path::Path>>(file_path: P) -> std::io
 
 pub fn generate_type_ident_string(spec: &ScSpecTypeDef) -> ExtendedValueType {
     match spec {
-        ScSpecTypeDef::Val => ExtendedValueType::new(ValueType::I32, "soroban_sdk::Val"),
-        ScSpecTypeDef::U64 => ExtendedValueType::new(ValueType::I64, "u64"),
-        ScSpecTypeDef::I64 => ExtendedValueType::new(ValueType::I64, "i64"),
-        ScSpecTypeDef::U32 => ExtendedValueType::new(ValueType::I32, "u32"),
-        ScSpecTypeDef::I32 => ExtendedValueType::new(ValueType::I32, "i32"),
-        ScSpecTypeDef::U128 => ExtendedValueType::new(ValueType::I64, "u128"),
-        ScSpecTypeDef::I128 => ExtendedValueType::new(ValueType::I64, "i128"),
-        ScSpecTypeDef::Bool => ExtendedValueType::new(ValueType::I32, "bool"),
-        ScSpecTypeDef::Symbol => ExtendedValueType::new(ValueType::I64, "soroban_sdk::Symbol"),
-        ScSpecTypeDef::Error => ExtendedValueType::new(ValueType::I32, "soroban_sdk::Error"),
-        ScSpecTypeDef::Bytes => ExtendedValueType::new(ValueType::I32, "soroban_sdk::Bytes"),
-        ScSpecTypeDef::Address => ExtendedValueType::new(ValueType::I32, "soroban_sdk::Address"),
-        ScSpecTypeDef::String => ExtendedValueType::new(ValueType::I32, "soroban_sdk::String"),
+        ScSpecTypeDef::Val => ExtendedValueType::new(Some(ValueType::I32), "soroban_sdk::Val"),
+        ScSpecTypeDef::U64 => ExtendedValueType::new(Some(ValueType::I64), "u64"),
+        ScSpecTypeDef::I64 => ExtendedValueType::new(Some(ValueType::I64), "i64"),
+        ScSpecTypeDef::U32 => ExtendedValueType::new(Some(ValueType::I32), "u32"),
+        ScSpecTypeDef::I32 => ExtendedValueType::new(Some(ValueType::I32), "i32"),
+        ScSpecTypeDef::U128 => ExtendedValueType::new(Some(ValueType::I64), "u128"),
+        ScSpecTypeDef::I128 => ExtendedValueType::new(Some(ValueType::I64), "i128"),
+        ScSpecTypeDef::Bool => ExtendedValueType::new(Some(ValueType::I32), "bool"),
+        ScSpecTypeDef::Symbol => ExtendedValueType::new(Some(ValueType::I64), "soroban_sdk::Symbol"),
+        ScSpecTypeDef::Error => ExtendedValueType::new(Some(ValueType::I32), "soroban_sdk::Error"),
+        ScSpecTypeDef::Bytes => ExtendedValueType::new(Some(ValueType::I32), "soroban_sdk::Bytes"),
+        ScSpecTypeDef::Address => ExtendedValueType::new(Some(ValueType::I32), "soroban_sdk::Address"),
+        ScSpecTypeDef::String => ExtendedValueType::new(Some(ValueType::I32), "soroban_sdk::String"),
         ScSpecTypeDef::Option(o) => {
             let value_ident = generate_type_ident_string(&o.value_type);
-            ExtendedValueType::new(ValueType::I32, &format!("Option<{}>", value_ident))
+            ExtendedValueType::new(Some(ValueType::I32), &format!("Option<{}>", value_ident))
         }
         ScSpecTypeDef::Result(r) => {
             let ok_ident = generate_type_ident_string(&r.ok_type);
             let error_ident = generate_type_ident_string(&r.error_type);
             ExtendedValueType::new(
-                ValueType::I32,
+                Some(ValueType::I32),
                 &format!("Result<{}, {}>", ok_ident, error_ident),
             )
         }
         ScSpecTypeDef::Vec(v) => {
             let element_ident = generate_type_ident_string(&v.element_type);
             ExtendedValueType::new(
-                ValueType::I32,
+                Some(ValueType::I32),
                 &format!("soroban_sdk::Vec<{}>", element_ident),
             )
         }
@@ -200,7 +200,7 @@ pub fn generate_type_ident_string(spec: &ScSpecTypeDef) -> ExtendedValueType {
             let key_ident = generate_type_ident_string(&m.key_type);
             let value_ident = generate_type_ident_string(&m.value_type);
             ExtendedValueType::new(
-                ValueType::I32,
+                Some(ValueType::I32),
                 &format!("soroban_sdk::Map<{}, {}>", key_ident, value_ident),
             )
         }
@@ -211,27 +211,27 @@ pub fn generate_type_ident_string(spec: &ScSpecTypeDef) -> ExtendedValueType {
                 .map(|ty| generate_type_ident_string(ty))
                 .collect();
             ExtendedValueType::new(
-                ValueType::I32,
+                Some(ValueType::I32),
                 &format!("({})", type_idents.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ")),
             )
         }
         ScSpecTypeDef::BytesN(b) => {
-            ExtendedValueType::new(ValueType::I32, &format!("soroban_sdk::BytesN<{}>", b.n))
+            ExtendedValueType::new(Some(ValueType::I32), &format!("soroban_sdk::BytesN<{}>", b.n))
         }
         ScSpecTypeDef::Udt(u) => {
             ExtendedValueType::new(
-                ValueType::I32,
+                Some(ValueType::I32),
                 &format!("{}", u.name.to_utf8_string().unwrap()),
             )
         }
-        ScSpecTypeDef::Void => ExtendedValueType::new(ValueType::I32, "()"),
+        ScSpecTypeDef::Void => ExtendedValueType::new(Some(ValueType::I32), "()"),
         ScSpecTypeDef::Timepoint => {
-            ExtendedValueType::new(ValueType::I32, "soroban_sdk::Timepoint")
+            ExtendedValueType::new(Some(ValueType::I32), "soroban_sdk::Timepoint")
         }
         ScSpecTypeDef::Duration => {
-            ExtendedValueType::new(ValueType::I32, "soroban_sdk::Duration")
+            ExtendedValueType::new(Some(ValueType::I32), "soroban_sdk::Duration")
         }
-        ScSpecTypeDef::U256 => ExtendedValueType::new(ValueType::I32, "soroban_sdk::U256"),
-        ScSpecTypeDef::I256 => ExtendedValueType::new(ValueType::I32, "soroban_sdk::I256"),
+        ScSpecTypeDef::U256 => ExtendedValueType::new(Some(ValueType::I32), "soroban_sdk::U256"),
+        ScSpecTypeDef::I256 => ExtendedValueType::new(Some(ValueType::I32), "soroban_sdk::I256"),
     }
 }

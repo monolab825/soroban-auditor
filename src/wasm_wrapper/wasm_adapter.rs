@@ -18,20 +18,20 @@ pub const PAGE_SIZE: u32 = 64 * 1024; // 64 KiB
 
 #[derive(Clone, Debug, PartialEq, Hash, Eq)]
 pub struct ExtendedValueType {
-    value_type: ValueType,
+    value_type: Option<ValueType>,
     type_str: String,
 }
 
 impl ExtendedValueType {
     // Constructor for the ExtendedValueType
-    pub fn new(value_type: ValueType, type_str: &str) -> Self {
+    pub fn new(value_type: Option<ValueType>, type_str: &str) -> Self {
         ExtendedValueType {
             value_type,
             type_str: type_str.to_string(),
         }
     }
 
-    pub fn value_type(&self) -> ValueType {
+    pub fn value_type(&self) -> Option<ValueType> {
         self.value_type
     }
 
@@ -77,16 +77,15 @@ impl From<ValidationError> for LoadError {
 pub struct FunctionType {
     type_ref: u32,
     params: Vec<ValueType>,
-    return_type: Option<ExtendedValueType>,
+    return_type: Option<ValueType>,
 }
 
 impl FunctionType {
     fn new(type_ref: u32, func_type: &mut pwasm::FunctionType) -> Self {
-        let old = func_type.return_type_mut();
         FunctionType {
             type_ref,
             params: take(func_type.params_mut()),
-            return_type: take(old),
+            return_type: take(func_type.return_type_mut()),
         }
     }
     pub const fn type_ref(&self) -> u32 {
@@ -98,7 +97,7 @@ impl FunctionType {
     pub fn param_count(&self) -> u32 {
         self.params.len() as u32
     }
-    pub const fn return_type(&self) -> Option<ExtendedValueType> {
+    pub const fn return_type(&self) -> Option<ValueType> {
         self.return_type
     }
 }
@@ -169,7 +168,7 @@ impl Function {
     pub fn param_count(&self) -> u32 {
         self.func_type.param_count()
     }
-    pub const fn return_type(&self) -> Option<ExtendedValueType> {
+    pub const fn return_type(&self) -> Option<ValueType> {
         self.func_type().return_type()
     }
     pub const fn is_imported(&self) -> bool {

@@ -163,7 +163,7 @@ impl CodeWriter {
         let return_type = match spec_fns {
             Some(spec) => {
                 let output = spec.output().unwrap();
-                output.type_ident().value_type();
+                output.type_ident().value_type()
             }
             None => func.return_type()
         };

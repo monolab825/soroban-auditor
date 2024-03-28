@@ -728,7 +728,7 @@ impl fmt::CodeDisplay for Expr {
 
             Expr::GetLocal(var) => {
                 if var.index < f.func().param_count() {
-                    write!(f, "xxx2_arg_{}", var);
+                    write!(f, "to{}", var);
                 } else {
                     write!(f, "var_{}", var);
                 }
@@ -883,12 +883,12 @@ impl fmt::CodeDisplay for Expr {
             Expr::F64Max(a, b) => write_binop_func(f, "max", a, b),
             Expr::F64Copysign(a, b) => write_binop_func(f, "copysign", a, b),
 
-            Expr::I32WrapI64(arg) => write_unop_func(f, "wrap<i32>", arg),
+            Expr::I32WrapI64(arg) => write_unop_func(f, "wrap::<i32>", arg),
             Expr::I32TruncSF32(arg) => write_unop_func(f, "trunc_s<i32>", arg),
             Expr::I32TruncUF32(arg) => write_unop_func(f, "trunc_u<i32>", arg),
             Expr::I32TruncSF64(arg) => write_unop_func(f, "trunc_s<i32>", arg),
             Expr::I32TruncUF64(arg) => write_unop_func(f, "trunc_u<i32>", arg),
-            Expr::I64ExtendSI32(arg) => write_unop_func(f, "extend_s<i64>", arg),
+            Expr::I64ExtendSI32(arg) => write_unop_func(f, "extend_s::<i64>", arg),
             Expr::I64ExtendUI32(arg) => write_unop_func(f, "extend_u::<i64>", arg),
             Expr::I64TruncSF32(arg) => write_unop_func(f, "trunc_s<i64>", arg),
             Expr::I64TruncUF32(arg) => write_unop_func(f, "trunc_u<i64>", arg),

@@ -105,9 +105,9 @@ fn write_store(f: &mut fmt::CodeWriter, fn_name: &'static str, target: &Expr, ex
 
 fn write_assign_local(f: &mut fmt::CodeWriter, var: Var, expr: &Expr) {
     if var.index < f.func().param_count() {
-        write!(f, "xxx_arg_{}", var);
+        write!(f, "arg_{}", var);
     } else {
-        write!(f, "xxx_var_{}", var);
+        write!(f, "var_{}", var);
     }
 
     match expr {
