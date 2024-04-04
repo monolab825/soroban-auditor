@@ -1,0 +1,13 @@
+{
+  "configurations": {
+    "launch": {
+      "adapter": "CodeLLDB",
+      "filetypes": [ "rust" ],
+      "configuration": {
+        "request": "launch",
+        "program": "${workspaceRoot}/target/debug/auditor",
+        "args": ["tests/soroban_token_contract.optimized.wasm"]
+      }
+    }
+  }
+}

@@ -1,10 +1,15 @@
 use crate::soroban;
 use crate::soroban::FunctionInfo;
 use std::rc::Rc;
+use crate::analysis;
+use crate::cfg::{Cfg, CfgBuildError};
+use crate::ssa;
+use crate::structuring;
 
 use crate::ssa::{Stmt, Var};
 use crate::wasm_wrapper::wasm;
 use crate::wasm_wrapper::wasm_adapter::{Function, Module, ValueType};
+
 
 pub trait CodeDisplay {
     fn fmt_code(&self, f: &mut CodeWriter);
@@ -124,64 +129,91 @@ impl CodeWriter {
         self.output.write_fmt(args);
     }
 
+    pub fn decompile_func(
+        &mut self,
+        func_index: u32,
+        print_graph: bool,
+    ) -> Result<(), CfgBuildError> {
+        let rc2 = self.wasm.clone();
+        let rc = self.wasm.clone();
+        let mut cfg = Cfg::build(rc2, func_index)?;
+        let mut def_use_map = ssa::transform_to_ssa(&mut cfg);
+        analysis::propagate_expressions(&mut cfg, &mut def_use_map);
+        analysis::eliminate_dead_code(&mut cfg, &mut def_use_map);
+        ssa::transform_out_of_ssa(&mut cfg);
+        if print_graph {
+            println!("{}", cfg.dot_string());
+        }
+        let (decls, code) = structuring::structure(cfg);
+        CodeWriter::printer(rc, func_index).write_func(&decls, &code);
+        Ok(())
+    }
+
     pub fn write_func(&mut self, 
-        func_index: u32, 
         decls: &[(Var, ValueType)], 
         code: &[Stmt],     
     ) {
         let func = self.func();
         let spec_fns = soroban::find_function_specs(self.specs_fns(), func.name());
-        let params = match  spec_fns {
-            Some(spec) => {
-                let params = spec 
-                .inputs()
-                .iter()
-                .enumerate()
-                .map(|(i, param)| {
-                    format!(
-                        "{}: {}",
-                        param.name(),
-                        param.type_ident().type_str()
-                    )
-                })
-                .collect::<Vec<_>>()
-                .join(", ");
-                params
+        //if !spec_fns.is_none() {
+            let params = match  spec_fns {
+                Some(spec) => {
+                    let params = spec 
+                    .inputs()
+                    .iter()
+                    .enumerate()
+                    .map(|(i, param)| {
+                        format!(
+                            "{}: {}",
+                            param.name(),
+                            param.type_ident().type_str()
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                    params
+                }
+                None => {
+                    let params = func
+                    .params()
+                    .iter()
+                    .enumerate()
+                    .map(|(i, t)| format!("{} arg_{}", t, (i as u8 + b'a') as char))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                    params
+                }, 
+            };
+
+            let return_type = spec_fns
+                .and_then(|spec| spec.output())
+                .map(|output| output.type_ident().value_type())
+                .unwrap_or_else(|| func.return_type());
+
+            let func_header = if let Some(ret_type) = return_type {
+                format!("pub fn {}(env: Env, {}) -> {} {{", func.name(), params, ret_type)
+            } else {
+                format!("pub fn {}({}) {{", func.name(), params)
+            };
+
+            self.write(func_header.as_str());
+            self.indent();
+
+            for (var, var_type) in decls {
+                self.newline();
+                write!(self, "let {} var_{};", var_type, ((var.index as u8) + b'a') as char);
             }
-            None => {
-                let params = func
-                .params()
-                .iter()
-                .enumerate()
-                .map(|(i, t)| format!("{} arg_{}", t, i))
-                .collect::<Vec<_>>()
-                .join(", ");
-                params
-            }, 
-        };
-
-        let return_type = match spec_fns {
-            Some(spec) => {
-                let output = spec.output().unwrap();
-                output.type_ident().value_type()
+            if !decls.is_empty() {
+                self.newline();
             }
-            None => func.return_type()
-        };
 
-        let func_header = if let Some(ret_type) = return_type {
-            format!("pub fn {}(env: Env, {}) -> {} {{", func.name(), params, ret_type)
-        } else {
-            format!("pub fn {}({}) {{", func.name(), params)
-        };
+            self.write(&code[..]);
+            self.dedent();
+            self.newline();
+            self.write("}");
+            self.newline();
+        // }
 
-        self.write(func_header.as_str());
-        self.indent();
-
-        self.write(&code[..]);
-        self.dedent();
-        self.newline();
-        self.write("}");
-        self.newline();
     }
 
     pub fn suppress_newline(&mut self) {

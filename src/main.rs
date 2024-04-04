@@ -1,12 +1,8 @@
 use clap::{App, Arg};
 use std::rc::Rc;
-
-use auditor::analysis;
-use auditor::cfg::{Cfg, CfgBuildError};
-use auditor::fmt;
-use auditor::ssa;
-use auditor::structuring;
+use auditor::cfg::CfgBuildError;
 use auditor::wasm_wrapper::wasm;
+use auditor::fmt::CodeWriter;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -40,7 +36,8 @@ fn main() {
 
     if let Some(func_index) = args.value_of("function_name") {
         let func_index = func_index.parse().unwrap();
-        match decompile_func(wasm, func_index, show_graph) {
+        let mut printer = CodeWriter::printer(wasm, func_index);
+        match printer.decompile_func(func_index, show_graph) {
             Ok(()) => (),
             Err(CfgBuildError::NoSuchFunc) => eprintln!("No function with index {}", func_index),
             Err(CfgBuildError::FuncIsImported) => {
@@ -50,33 +47,13 @@ fn main() {
     } else {
         for (i, func) in wasm.module().functions().iter().enumerate() {
             if !func.is_imported() {
+                let mut printer = CodeWriter::printer(wasm.clone(), i as u32);
                 let name = func.name();
                 eprintln!("Decompiling {}: index {}", name, i);
-                decompile_func(Rc::clone(&wasm), i as u32, show_graph).unwrap();
+                printer.decompile_func(i as u32, show_graph).unwrap();
                 println!();
             }
         }
     }
 }
 
-fn decompile_func(
-    wasm: Rc<wasm::Instance>,
-    func_index: u32,
-    print_graph: bool,
-) -> Result<(), CfgBuildError> {
-    let mut cfg = Cfg::build(Rc::clone(&wasm), func_index)?;
-
-    let mut def_use_map = ssa::transform_to_ssa(&mut cfg);
-
-    analysis::propagate_expressions(&mut cfg, &mut def_use_map);
-    analysis::eliminate_dead_code(&mut cfg, &mut def_use_map);
-    ssa::transform_out_of_ssa(&mut cfg);
-
-    if print_graph {
-        println!("{}", cfg.dot_string());
-    }
-
-    let (decls, code) = structuring::structure(cfg);
-    fmt::CodeWriter::printer(wasm, func_index).write_func(func_index, &decls, &code);
-    Ok(())
-}

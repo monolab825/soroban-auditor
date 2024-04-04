@@ -1,10 +1,11 @@
+use soroban_wasmi::{Engine, Module};
 use soroban_spec_rust::types::generate_error_enum;
 use soroban_spec_rust::types::generate_enum;
 use soroban_spec_rust::types::generate_union;
 use soroban_spec_rust::types::generate_struct;
 use parity_wasm::elements::ValueType;
 use crate::wasm_wrapper::wasm_adapter::ExtendedValueType;
-use std::io::{self, Read};
+use std::io::Read;
 use soroban_sdk::xdr::ScSpecEntry;
 use std::fs::File;
 use std::fmt;
@@ -112,8 +113,9 @@ pub fn read_contract_specs<P: AsRef<::std::path::Path>>(file_path: P) -> std::io
     let mut file = File::open(file_path)?;
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)?;
+    let engine = Engine::default();
+    //let module = Module::new(&engine, &file).unwrap();
     let entries = from_wasm(&buffer).unwrap();
-
     let mut spec_fns = Vec::new();
     let mut spec_structs = Vec::new();
     let mut spec_unions = Vec::new();

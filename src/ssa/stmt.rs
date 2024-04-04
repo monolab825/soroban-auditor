@@ -105,10 +105,10 @@ fn write_store(f: &mut fmt::CodeWriter, fn_name: &'static str, target: &Expr, ex
 
 fn write_assign_local(f: &mut fmt::CodeWriter, var: Var, expr: &Expr) {
     if var.index < f.func().param_count() {
-        write!(f, "arg_{}", var);
+        write!(f, "{}{}", "arg_", (var.index as u8 + b'a') as char);
     } else {
-        write!(f, "var_{}", var);
-    }
+        write!(f, "{}{}", "var_", (var.index as u8 + b'a') as char);
+    };
 
     match expr {
         Expr::I32Add(v, b) | Expr::I64Add(v, b) | Expr::F32Add(v, b) | Expr::F64Add(v, b) => {
@@ -240,6 +240,7 @@ impl fmt::CodeDisplay for Stmt {
             }
             Stmt::Return(result) => {
                 f.write("return ");
+                let check_value = result;
                 f.write(result);
                 f.write(";");
             }
@@ -376,19 +377,19 @@ impl fmt::CodeDisplay for Stmt {
                 f.write(";");
             }
             Stmt::SetGlobal(index, expr) => {
-                write!(f, "global_{}", index);
+                write!(f, "global_{}", ((*index) as u8 + b'a') as char);
                 write_assign_global(f, *index, expr);
                 f.write(";");
             }
-            Stmt::I32Store(target, expr) => write_store(f, "store<i32>", target, expr),
-            Stmt::I64Store(target, expr) => write_store(f, "store<i64>", target, expr),
-            Stmt::F32Store(target, expr) => write_store(f, "store<f32>", target, expr),
-            Stmt::F64Store(target, expr) => write_store(f, "store<f64>", target, expr),
-            Stmt::I32Store8(target, expr) => write_store(f, "store_8<i32>", target, expr),
-            Stmt::I32Store16(target, expr) => write_store(f, "store_16<i32>", target, expr),
-            Stmt::I64Store8(target, expr) => write_store(f, "store_8<i64>", target, expr),
-            Stmt::I64Store16(target, expr) => write_store(f, "store_16<i64>", target, expr),
-            Stmt::I64Store32(target, expr) => write_store(f, "store_32<i32>", target, expr),
+            Stmt::I32Store(target, expr) => write_store(f, "storeI32", target, expr),
+            Stmt::I64Store(target, expr) => write_store(f, "storeI64", target, expr),
+            Stmt::F32Store(target, expr) => write_store(f, "storeF32", target, expr),
+            Stmt::F64Store(target, expr) => write_store(f, "storeF64", target, expr),
+            Stmt::I32Store8(target, expr) => write_store(f, "store8_I32", target, expr),
+            Stmt::I32Store16(target, expr) => write_store(f, "store16_I32", target, expr),
+            Stmt::I64Store8(target, expr) => write_store(f, "store8_I64", target, expr),
+            Stmt::I64Store16(target, expr) => write_store(f, "store16_I64", target, expr),
+            Stmt::I64Store32(target, expr) => write_store(f, "store32_I32", target, expr),
         }
     }
 }

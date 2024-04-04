@@ -1,4 +1,12 @@
+use std::rc::Rc;
+use crate::fmt::CodeWriter;
+use soroban_sdk::xdr::ScValType;
+use soroban_sdk::xdr::ScVal;
+use soroban_sdk::Symbol;
 use std::collections::HashMap;
+use std::convert::Infallible;
+
+use soroban_sdk::Val;
 
 use crate::fmt;
 use crate::wasm_wrapper::wasm::TableElement;
@@ -644,6 +652,7 @@ fn write_binop_func(f: &mut fmt::CodeWriter, name: &'static str, a: &Expr, b: &E
 pub fn write_call(f: &mut fmt::CodeWriter, index: u32, args: &[Expr]) {
     let func_name = f.module().func(index).name().to_string();
     write!(f, "{}(", func_name);
+    CodeWriter::decompile_func(f, index, false).unwrap();
     if !args.is_empty() {
         f.write(&args[0]);
         for arg in &args[1..] {
@@ -711,13 +720,13 @@ impl fmt::CodeDisplay for Expr {
             Expr::MemorySize => f.write("memory_size()"),
             Expr::MemoryGrow(arg) => write_unop_func(f, "grow_memory", arg),
 
-            Expr::I32Load(target) => write_unop_func(f, "load<i32>", target),
-            Expr::I64Load(target) => write_unop_func(f, "load<i64>", target),
-            Expr::F32Load(target) => write_unop_func(f, "load<f32>", target),
-            Expr::F64Load(target) => write_unop_func(f, "load<f64>", target),
-            Expr::I32Load8S(target) => write_unop_func(f, "load_8s<i32>", target),
-            Expr::I32Load8U(target) => write_unop_func(f, "load_8u<i32>", target),
-            Expr::I32Load16S(target) => write_unop_func(f, "load_16s<i32>", target),
+            Expr::I32Load(target) => write_unop_func(f, "loadI32", target),
+            Expr::I64Load(target) => write_unop_func(f, "loadI64", target),
+            Expr::F32Load(target) => write_unop_func(f, "loadF32", target),
+            Expr::F64Load(target) => write_unop_func(f, "loadF64", target),
+            Expr::I32Load8S(target) => write_unop_func(f, "load8s<i32>", target),
+            Expr::I32Load8U(target) => write_unop_func(f, "load8u<i32>", target),
+            Expr::I32Load16S(target) => write_unop_func(f, "load16s<i32>", target),
             Expr::I32Load16U(target) => write_unop_func(f, "load_16u<i32>", target),
             Expr::I64Load8S(target) => write_unop_func(f, "load_8s<i64>", target),
             Expr::I64Load8U(target) => write_unop_func(f, "load_8u<i64>", target),
@@ -728,14 +737,22 @@ impl fmt::CodeDisplay for Expr {
 
             Expr::GetLocal(var) => {
                 if var.index < f.func().param_count() {
-                    write!(f, "to{}", var);
+                    write!(f, "{}{}", "arg_", ((var.index as u8) + b'a') as char);
                 } else {
-                    write!(f, "var_{}", var);
-                }
+                    write!(f, "{}{}", "var_", ((var.index as u8) + b'a') as char);
+                };
             }
-            Expr::GetGlobal(index) => write!(f, "global_{}", *index),
+            Expr::GetGlobal(index) => write!(f, "global_{}", (*index as u8 +b'a') as char),
             Expr::I32Const(val) => write!(f, "{}", *val as i32),
-            Expr::I64Const(val) => write!(f, "{}", *val as i64),
+            Expr::I64Const(val) => {
+                let value = *val;
+                let v = Val::from_payload(value);
+                if v.is_good() {
+                    write!(f, "{:?}", v);
+                }else {
+                    write!(f, "{}", *val as i64)
+                }
+            },
             Expr::F32Const(val) => write!(f, "{}", f32::from_bits(*val)),
             Expr::F64Const(val) => write!(f, "{}", f64::from_bits(*val)),
 
@@ -883,13 +900,13 @@ impl fmt::CodeDisplay for Expr {
             Expr::F64Max(a, b) => write_binop_func(f, "max", a, b),
             Expr::F64Copysign(a, b) => write_binop_func(f, "copysign", a, b),
 
-            Expr::I32WrapI64(arg) => write_unop_func(f, "wrap::<i32>", arg),
+            Expr::I32WrapI64(arg) => write_unop_func(f, "wrapI32", arg),
             Expr::I32TruncSF32(arg) => write_unop_func(f, "trunc_s<i32>", arg),
             Expr::I32TruncUF32(arg) => write_unop_func(f, "trunc_u<i32>", arg),
             Expr::I32TruncSF64(arg) => write_unop_func(f, "trunc_s<i32>", arg),
             Expr::I32TruncUF64(arg) => write_unop_func(f, "trunc_u<i32>", arg),
-            Expr::I64ExtendSI32(arg) => write_unop_func(f, "extend_s::<i64>", arg),
-            Expr::I64ExtendUI32(arg) => write_unop_func(f, "extend_u::<i64>", arg),
+            Expr::I64ExtendSI32(arg) => write_unop_func(f, "extendSI64", arg),
+            Expr::I64ExtendUI32(arg) => write_unop_func(f, "extendUI64", arg),
             Expr::I64TruncSF32(arg) => write_unop_func(f, "trunc_s<i64>", arg),
             Expr::I64TruncUF32(arg) => write_unop_func(f, "trunc_u<i64>", arg),
             Expr::I64TruncSF64(arg) => write_unop_func(f, "trunc_s<i64>", arg),
