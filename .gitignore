@@ -1,0 +1,6 @@
+/target
+**/*.rs.bk
+*.wasm
+/examples/test.wat
+/tests/hello/target
+/tests/token/target
