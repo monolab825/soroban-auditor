@@ -32,12 +32,12 @@ fn main() {
         }
     };
 
-    let show_graph = args.is_present("show-graph");
+    let _show_graph = args.is_present("show-graph");
 
     if let Some(func_index) = args.value_of("function_name") {
         let func_index = func_index.parse().unwrap();
         let mut printer = CodeWriter::printer(wasm, func_index);
-        match printer.decompile_func(func_index, show_graph) {
+        match printer.decompile_func(func_index) {
             Ok(()) => (),
             Err(CfgBuildError::NoSuchFunc) => eprintln!("No function with index {}", func_index),
             Err(CfgBuildError::FuncIsImported) => {
@@ -49,8 +49,8 @@ fn main() {
             if !func.is_imported() {
                 let mut printer = CodeWriter::printer(wasm.clone(), i as u32);
                 let name = func.name();
-                eprintln!("Decompiling {}: index {}", name, i);
-                printer.decompile_func(i as u32, show_graph).unwrap();
+                eprintln!("//Decompiling {}({})", name, i);
+                printer.decompile_func(i as u32).unwrap();
                 println!();
             }
         }

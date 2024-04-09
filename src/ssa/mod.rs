@@ -16,15 +16,20 @@ pub use value_space::ValueSpace;
 pub struct Var {
     pub index: u32,
     pub subscript: u32,
+    pub asserted: bool 
 }
 
 impl Var {
     pub const fn new(index: u32, subscript: u32) -> Self {
-        Var { index, subscript }
+        Var { index, subscript, asserted: false}
     }
 
     pub const fn no_sub(index: u32) -> Self {
-        Var { index, subscript: 0 }
+        Var { index, subscript: 0, asserted: false}
+    }
+
+    pub fn set_asserted(&mut self) {
+        self.asserted = true;
     }
 }
 

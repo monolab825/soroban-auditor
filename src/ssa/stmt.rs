@@ -1,6 +1,7 @@
+use crate::soroban::FunctionInfo;
 use crate::fmt;
 
-use super::{Cond, Expr, Var, cond::MappedExpr, ValueSpace};
+use super::{cond::MappedExpr, Cond, Expr, ValueSpace, Var};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LoopKind {
@@ -103,17 +104,30 @@ fn write_store(f: &mut fmt::CodeWriter, fn_name: &'static str, target: &Expr, ex
     f.write(")");
 }
 
-fn write_assign_local(f: &mut fmt::CodeWriter, var: Var, expr: &Expr) {
+fn write_assign_local(f: &mut fmt::CodeWriter, var: &Var, expr: &Expr) {
     if var.index < f.func().param_count() {
+        if let Some(spec_args) = f.func().spec_fn() {
+            if spec_args != &FunctionInfo::default() {
+                let inputs = spec_args.inputs().get(var.index as usize);
+                if let Some(arg) = inputs {
+                    write!(f, "{}", arg.clone().name());
+                    return;
+                }
+            }
+        }
         write!(f, "{}{}", "arg_", (var.index as u8 + b'a') as char);
     } else {
-        write!(f, "{}{}", "var_", (var.index as u8 + b'a') as char);
+        if var.asserted {
+            write!(f, "let var_{}", (var.index as u8 + b'a') as char);
+        }else {
+            write!(f, "let var_{}", (var.index as u8 + b'a') as char);
+        }
     };
 
     match expr {
         Expr::I32Add(v, b) | Expr::I64Add(v, b) | Expr::F32Add(v, b) | Expr::F64Add(v, b) => {
             if let Expr::GetLocal(v) = **v {
-                if v == var {
+                if v == *var {
                     if let Expr::I32Const(val) = **b {
                         let val = val as i32;
                         if val == 1 {
@@ -150,7 +164,7 @@ fn write_assign_local(f: &mut fmt::CodeWriter, var: Var, expr: &Expr) {
         }
         Expr::I32Mul(v, b) | Expr::I64Mul(v, b) | Expr::F32Mul(v, b) | Expr::F64Mul(v, b) => {
             if let Expr::GetLocal(v) = **v {
-                if v == var {
+                if v == *var {
                     write!(f, " *= ");
                     f.write(b);
                     return;
@@ -159,7 +173,7 @@ fn write_assign_local(f: &mut fmt::CodeWriter, var: Var, expr: &Expr) {
         }
         Expr::I32Sub(v, b) | Expr::I64Sub(v, b) | Expr::F32Sub(v, b) | Expr::F64Sub(v, b) => {
             if let Expr::GetLocal(v) = **v {
-                if v == var {
+                if v == *var {
                     write!(f, " -= ");
                     f.write(b);
                     return;
@@ -240,7 +254,6 @@ impl fmt::CodeDisplay for Stmt {
             }
             Stmt::Return(result) => {
                 f.write("return ");
-                let check_value = result;
                 f.write(result);
                 f.write(";");
             }
@@ -270,12 +283,12 @@ impl fmt::CodeDisplay for Stmt {
             Stmt::ForLoop(var, init, cond, post, body) => {
                 f.write("for ");
                 if let Some(init) = init {
-                    write_assign_local(f, *var, init);
+                    write_assign_local(f, var, init);
                 }
                 f.write("; ");
                 f.write(cond);
                 f.write("; ");
-                write_assign_local(f, *var, post);
+                write_assign_local(f, var, post);
                 f.write(" {");
                 f.indent();
                 f.write(&body[..]);
@@ -373,7 +386,7 @@ impl fmt::CodeDisplay for Stmt {
                 f.write("}");
             }
             Stmt::SetLocal(var, expr) => {
-                write_assign_local(f, *var, expr);
+                write_assign_local(f, var, expr);
                 f.write(";");
             }
             Stmt::SetGlobal(index, expr) => {
@@ -381,15 +394,15 @@ impl fmt::CodeDisplay for Stmt {
                 write_assign_global(f, *index, expr);
                 f.write(";");
             }
-            Stmt::I32Store(target, expr) => write_store(f, "storeI32", target, expr),
-            Stmt::I64Store(target, expr) => write_store(f, "storeI64", target, expr),
-            Stmt::F32Store(target, expr) => write_store(f, "storeF32", target, expr),
-            Stmt::F64Store(target, expr) => write_store(f, "storeF64", target, expr),
-            Stmt::I32Store8(target, expr) => write_store(f, "store8_I32", target, expr),
-            Stmt::I32Store16(target, expr) => write_store(f, "store16_I32", target, expr),
-            Stmt::I64Store8(target, expr) => write_store(f, "store8_I64", target, expr),
-            Stmt::I64Store16(target, expr) => write_store(f, "store16_I64", target, expr),
-            Stmt::I64Store32(target, expr) => write_store(f, "store32_I32", target, expr),
+            Stmt::I32Store(target, expr) => write_store(f, "store_i32", target, expr),
+            Stmt::I64Store(target, expr) => write_store(f, "store_i64", target, expr),
+            Stmt::F32Store(target, expr) => write_store(f, "store_f32", target, expr),
+            Stmt::F64Store(target, expr) => write_store(f, "store_f64", target, expr),
+            Stmt::I32Store8(target, expr) => write_store(f, "store8_i32", target, expr),
+            Stmt::I32Store16(target, expr) => write_store(f, "store16_i32", target, expr),
+            Stmt::I64Store8(target, expr) => write_store(f, "store8_i64", target, expr),
+            Stmt::I64Store16(target, expr) => write_store(f, "store16_i64", target, expr),
+            Stmt::I64Store32(target, expr) => write_store(f, "store32_i32", target, expr),
         }
     }
 }

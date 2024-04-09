@@ -202,7 +202,7 @@ impl CfgBuilder {
     fn init_locals(&mut self, func: &Function) {
         for (i, local) in func.locals().iter().enumerate() {
             let i = i + func.func_type().params().len();
-            let val = match local {
+            let val = match local.value_type() {
                 ValueType::I32 => Expr::I32Const(0),
                 ValueType::I64 => Expr::I64Const(0),
                 ValueType::F32 => Expr::F32Const(0.0_f32.to_bits()),

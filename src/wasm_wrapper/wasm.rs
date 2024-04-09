@@ -1,4 +1,3 @@
-use crate::soroban;
 use crate::soroban::FunctionInfo;
 use super::wasm_adapter::{InitExpr, LoadError, Module};
 
@@ -17,18 +16,14 @@ pub struct Table {
 pub struct Instance {
     module: Module,
     tables: Vec<Table>,
-    spec_fns: Vec<FunctionInfo>,
 }
 
 impl Instance {
     pub fn from_file<P: AsRef<::std::path::Path>>(path: P) -> Result<Self, LoadError> {
         let module = Module::from_file(&path)?;
-        let spec_fns_result = soroban::read_contract_specs(&path).map_err(|err| LoadError::ValidationError(wasmi_validation::Error("Hello".to_string())))?;
-
         Ok(Self {
             tables: init_tables(&module),
             module,
-            spec_fns: spec_fns_result
         })
     }
     pub const fn module(&self) -> &Module {
@@ -38,7 +33,7 @@ impl Instance {
         &self.tables
     }
      pub fn spec_fns(&self) -> &Vec<FunctionInfo> {
-        &self.spec_fns
+        &self.module().spec_fns()
     }
 }
 

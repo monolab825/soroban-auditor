@@ -1,15 +1,13 @@
-use crate::soroban;
-use crate::soroban::FunctionInfo;
-use std::rc::Rc;
 use crate::analysis;
 use crate::cfg::{Cfg, CfgBuildError};
+use crate::soroban::FunctionInfo;
 use crate::ssa;
 use crate::structuring;
+use std::rc::Rc;
 
-use crate::ssa::{Stmt, Var};
+use crate::ssa::Stmt;
 use crate::wasm_wrapper::wasm;
-use crate::wasm_wrapper::wasm_adapter::{Function, Module, ValueType};
-
+use crate::wasm_wrapper::wasm_adapter::{Function, Module};
 
 pub trait CodeDisplay {
     fn fmt_code(&self, f: &mut CodeWriter);
@@ -105,7 +103,7 @@ impl CodeWriter {
         self.wasm.module()
     }
 
-    pub fn specs_fns(&self) -> &Vec<FunctionInfo>{
+    pub fn specs_fns(&self) -> &Vec<FunctionInfo> {
         self.wasm.spec_fns()
     }
 
@@ -129,91 +127,65 @@ impl CodeWriter {
         self.output.write_fmt(args);
     }
 
-    pub fn decompile_func(
-        &mut self,
-        func_index: u32,
-        print_graph: bool,
-    ) -> Result<(), CfgBuildError> {
-        let rc2 = self.wasm.clone();
-        let rc = self.wasm.clone();
-        let mut cfg = Cfg::build(rc2, func_index)?;
+    pub fn decompile_func(&mut self, func_index: u32) -> Result<(), CfgBuildError> {
+        let mut cfg = Cfg::build(self.wasm.clone(), func_index)?;
         let mut def_use_map = ssa::transform_to_ssa(&mut cfg);
         analysis::propagate_expressions(&mut cfg, &mut def_use_map);
         analysis::eliminate_dead_code(&mut cfg, &mut def_use_map);
         ssa::transform_out_of_ssa(&mut cfg);
-        if print_graph {
-            println!("{}", cfg.dot_string());
-        }
-        let (decls, code) = structuring::structure(cfg);
-        CodeWriter::printer(rc, func_index).write_func(&decls, &code);
+        //println!("{}", cfg.dot_string());
+        let (_decls, code) = structuring::structure(cfg);
+        CodeWriter::printer(self.wasm.clone(), func_index).write_func(&code);
         Ok(())
     }
 
-    pub fn write_func(&mut self, 
-        decls: &[(Var, ValueType)], 
-        code: &[Stmt],     
-    ) {
+    pub fn write_func(&mut self, code: &[Stmt]) {
         let func = self.func();
-        let spec_fns = soroban::find_function_specs(self.specs_fns(), func.name());
-        //if !spec_fns.is_none() {
-            let params = match  spec_fns {
-                Some(spec) => {
-                    let params = spec 
+        let ret_type = match func.return_type() {
+            Some(type_ret) => {
+                let type_str = type_ret.to_string();
+                type_str
+            }
+            None => "".to_string(),
+        };
+
+        let (params, return_type) = match func.spec_fn() {
+            Some(spec) if spec != &FunctionInfo::default() => {
+                let params = spec
                     .inputs()
                     .iter()
                     .enumerate()
-                    .map(|(i, param)| {
-                        format!(
-                            "{}: {}",
-                            param.name(),
-                            param.type_ident().type_str()
-                        )
-                    })
+                    .map(|(_i, param)| format!("{}: {}", param.name(), param.type_ident().type_str()))
                     .collect::<Vec<_>>()
                     .join(", ");
-                    params
-                }
-                None => {
-                    let params = func
+                let output = spec.output();
+                let return_type = output.map_or(ret_type, |o| o.type_ident().type_str().to_string());
+                (params, return_type)
+            }
+            _ => {
+                let params = func
                     .params()
                     .iter()
                     .enumerate()
                     .map(|(i, t)| format!("{} arg_{}", t, (i as u8 + b'a') as char))
                     .collect::<Vec<_>>()
                     .join(", ");
-                    params
-                }, 
-            };
-
-            let return_type = spec_fns
-                .and_then(|spec| spec.output())
-                .map(|output| output.type_ident().value_type())
-                .unwrap_or_else(|| func.return_type());
-
-            let func_header = if let Some(ret_type) = return_type {
-                format!("pub fn {}(env: Env, {}) -> {} {{", func.name(), params, ret_type)
-            } else {
-                format!("pub fn {}({}) {{", func.name(), params)
-            };
-
-            self.write(func_header.as_str());
-            self.indent();
-
-            for (var, var_type) in decls {
-                self.newline();
-                write!(self, "let {} var_{};", var_type, ((var.index as u8) + b'a') as char);
+                (params, ret_type)
             }
-            if !decls.is_empty() {
-                self.newline();
-            }
+        };
+        let func_header = if return_type.len() > 0 {
+            format!("pub fn {}(env: Env, {}) -> {} {{", func.name(), params, return_type)
+        } else {
+            format!("pub fn {}({}) {{", func.name(), params)
+        };
 
-            self.write(&code[..]);
-            self.dedent();
-            self.newline();
-            self.write("}");
-            self.newline();
-        // }
-
+        self.write(func_header.as_str());
+        self.indent();
+        self.write(&code[..]);
+        self.dedent();
+        self.newline();
+        self.write("}");
+        self.newline();
     }
 
     pub fn suppress_newline(&mut self) {

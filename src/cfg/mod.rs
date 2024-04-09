@@ -1,4 +1,3 @@
-use crate::soroban::FunctionInfo;
 use std::collections::HashSet;
 use std::rc::Rc;
 

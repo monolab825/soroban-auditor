@@ -1,5 +1,7 @@
+use crate::soroban;
 use crate::soroban::take_common_module;
 use crate::soroban::env_common_modules_result;
+use crate::soroban::FunctionInfo;
 use core::convert::{TryFrom, TryInto};
 use core::fmt;
 use core::iter::{self, FromIterator};
@@ -18,20 +20,20 @@ pub const PAGE_SIZE: u32 = 64 * 1024; // 64 KiB
 
 #[derive(Clone, Debug, PartialEq, Hash, Eq)]
 pub struct ExtendedValueType {
-    value_type: Option<ValueType>,
+    value_type: ValueType,
     type_str: String,
 }
 
 impl ExtendedValueType {
     // Constructor for the ExtendedValueType
-    pub fn new(value_type: Option<ValueType>, type_str: &str) -> Self {
+    pub fn new(value_type: ValueType, type_str: &str) -> Self {
         ExtendedValueType {
             value_type,
             type_str: type_str.to_string(),
         }
     }
 
-    pub fn value_type(&self) -> Option<ValueType> {
+    pub fn value_type(&self) -> ValueType {
         self.value_type
     }
 
@@ -42,7 +44,7 @@ impl ExtendedValueType {
 
 impl fmt::Display for ExtendedValueType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Type: {:?}, Name: {}", self.value_type, self.type_str)
+        write!(f, "{}", self.type_str)
     }
 }
 
@@ -97,7 +99,7 @@ impl FunctionType {
     pub fn param_count(&self) -> u32 {
         self.params.len() as u32
     }
-    pub const fn return_type(&self) -> Option<ValueType> {
+    pub fn return_type(&self) -> Option<ValueType> {
         self.return_type
     }
 }
@@ -123,16 +125,18 @@ pub struct Function {
     name: String,
     func_type: FunctionType,
     is_imported: bool,
-    locals: Vec<ValueType>,
+    locals: Vec<ExtendedValueType>,
     instructions: Vec<Instruction>,
+    spec_fn: FunctionInfo 
 }
 
 impl Function {
     const fn new(
         name: String,
         func_type: FunctionType,
-        locals: Vec<ValueType>,
+        locals: Vec<ExtendedValueType>,
         instructions: Vec<Instruction>,
+        spec_fn: FunctionInfo
     ) -> Self {
         Function {
             name,
@@ -140,16 +144,18 @@ impl Function {
             is_imported: false,
             locals,
             instructions,
+            spec_fn,
         }
     }
 
-    fn new_imported(name: String, func_type: FunctionType) -> Self {
+    fn new_imported(name: String, func_type: FunctionType, spec_fn: FunctionInfo) -> Self {
         Function {
             name,
             func_type,
             is_imported: true,
             locals: Vec::new(),
             instructions: Vec::new(),
+            spec_fn 
         }
     }
 
@@ -168,17 +174,20 @@ impl Function {
     pub fn param_count(&self) -> u32 {
         self.func_type.param_count()
     }
-    pub const fn return_type(&self) -> Option<ValueType> {
+    pub fn return_type(&self) -> Option<ValueType> {
         self.func_type().return_type()
     }
     pub const fn is_imported(&self) -> bool {
         self.is_imported
     }
-    pub fn locals(&self) -> &[ValueType] {
+    pub fn locals(&self) -> &[ExtendedValueType] {
         &self.locals
     }
     pub fn instructions(&self) -> &[Instruction] {
         &self.instructions
+    }
+    pub fn spec_fn(&self) -> Option<&FunctionInfo> {
+        Some(&self.spec_fn)
     }
 }
 
@@ -350,22 +359,25 @@ pub struct Module {
     exports: Vec<ExportEntry>,
     start_func: Option<u32>,
     custom_sections: Vec<CustomSection>,
+    spec_fns: Vec<FunctionInfo>
 }
 
 impl Module {
     pub fn from_file<P: AsRef<::std::path::Path>>(path: P) -> Result<Self, LoadError> {
-        let module = parity_wasm::deserialize_file(path)?;
+        let module = parity_wasm::deserialize_file(&path)?;
         let common_modules = env_common_modules_result().unwrap();
+        let spec_fns_result = soroban::read_contract_specs(&path).map_err(|_err| LoadError::ValidationError(wasmi_validation::Error("Hello".to_string())))?;
         wasmi_validation::validate_module::<wasmi_validation::PlainValidator>(&module)?;
-        Ok(Module::from_parity_module(module, common_modules))
+        Ok(Module::from_parity_module(module, common_modules, spec_fns_result))
     }
 
-    fn from_parity_module(module: pwasm::Module, common_modules: Vec<Value>) -> Self {
+    fn from_parity_module(module: pwasm::Module, common_modules: Vec<Value>, spec_fns_result: Vec<FunctionInfo>) -> Self {
         // TODO: What happens when multiple functions have the same name?
         let mut module = match module.parse_names() {
             Ok(module) => module,
             Err((_, module)) => module,
         };
+
         let types = get_types(&mut module);
         let mut globals = Vec::new();
         let mut functions = Vec::new();
@@ -379,15 +391,12 @@ impl Module {
                 let module_result = take_common_module(&common_modules, entry.module(), entry.field());
                 let name  = match module_result {
                     Ok(module) => format!("{}.{}", module.module_name, module.function_name),
-                    Err(err) => {
-                        eprintln!("Error: {}", err);
-                        format!("{}.{}", entry.module(), entry.field())
-                    }
+                    Err(_err) => format!("{}.{}", entry.module(), entry.field())
                 };
                 match entry.external() {
                     External::Function(type_ref) => {
                         let func_type = types[*type_ref as usize].clone();
-                        functions.push(Function::new_imported(name, func_type))
+                        functions.push(Function::new_imported(name, func_type, FunctionInfo::default()))
                     }
                     External::Global(global_type) => globals.push(Global::from_import(
                         name,
@@ -408,6 +417,7 @@ impl Module {
             imports = take(import_sec.entries_mut());
         }
 
+
         handle_global_section(&mut globals, &module);
         handle_function_section(&mut functions, &module, &types);
         handle_table_section(&mut tables, &mut module);
@@ -417,7 +427,15 @@ impl Module {
             for export in export_sec.entries() {
                 match export.internal() {
                     Internal::Function(index) => {
-                        functions[*index as usize].name = export.field().to_string()
+                        functions[*index as usize].name = export.field().to_string();
+                        let spec_fn = soroban::find_function_specs(&spec_fns_result, export.field());
+                        match spec_fn {
+                            Some(spec) => {
+                                functions[*index as usize].spec_fn = spec;
+                                //todo: replace the locals
+                            }
+                            None => () 
+                        };
                     }
                     Internal::Global(index) => {
                         globals[*index as usize].name = export.field().to_string()
@@ -448,6 +466,7 @@ impl Module {
             exports,
             start_func: module.start_section(),
             custom_sections: Vec::from_iter(module.custom_sections().cloned()),
+            spec_fns: spec_fns_result
         }
     }
 
@@ -490,6 +509,9 @@ impl Module {
     pub fn custom_sections(&self) -> &[CustomSection] {
         &self.custom_sections
     }
+    pub fn spec_fns(&self) -> &Vec<FunctionInfo> {
+        &self.spec_fns
+    }
 }
 
 fn get_types(module: &mut pwasm::Module) -> Vec<FunctionType> {
@@ -527,13 +549,19 @@ fn handle_function_section(
             let type_ref = type_ref.type_ref();
             let name = format!("func_{}", functions.len());
             let func_type = types[type_ref as usize].clone();
+
             let locals = body
                 .locals()
                 .iter()
-                .flat_map(|locals| iter::repeat(locals.value_type()).take(locals.count() as usize))
+                .flat_map(|locals| iter::repeat(
+
+                    ExtendedValueType::new(locals.value_type(), format!("{}", locals.value_type()).as_str())
+
+                ).take(locals.count() as usize))
                 .collect();
+
             let instructions = body.code().elements().to_vec();
-            functions.push(Function::new(name, func_type, locals, instructions));
+            functions.push(Function::new(name, func_type, locals, instructions, FunctionInfo::default()));
         }
     }
 }

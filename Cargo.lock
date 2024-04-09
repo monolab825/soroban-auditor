@@ -49,6 +49,7 @@ dependencies = [
  "soroban-spec",
  "soroban-spec-rust",
  "soroban-wasmi",
+ "tlsh",
  "wasmi-validation",
  "z3 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "z3-sys 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1243,6 +1244,12 @@ dependencies = [
  "num-conv",
  "time-core",
 ]
+
+[[package]]
+name = "tlsh"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "abc50ece64366799d89819a3a5ad910a860220439eefcffef9ca17720c89236e"
 
 [[package]]
 name = "typenum"
