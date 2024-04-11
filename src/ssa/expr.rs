@@ -1,3 +1,4 @@
+use regex::Regex;
 use crate::soroban::FunctionInfo;
 use std::collections::HashMap;
 
@@ -8,6 +9,13 @@ use crate::wasm_wrapper::wasm::TableElement;
 use crate::wasm_wrapper::wasm_adapter::{ValueType, self};
 
 use super::Var;
+
+const DAY_IN_LEDGERS: u32 = 17280;
+const INSTANCE_BUMP_AMOUNT: u32 = 7 * DAY_IN_LEDGERS;
+const INSTANCE_LIFETIME_THRESHOLD: u32 = INSTANCE_BUMP_AMOUNT - DAY_IN_LEDGERS;
+const BALANCE_BUMP_AMOUNT: u32 = 30 * DAY_IN_LEDGERS;
+const BALANCE_LIFETIME_THRESHOLD: u32 = BALANCE_BUMP_AMOUNT - DAY_IN_LEDGERS;
+
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Expr {
@@ -751,8 +759,22 @@ impl fmt::CodeDisplay for Expr {
                 let value = *val;
                 let v = Val::from_payload(value);
                 if v.is_good() {
-                    write!(f, "{:?}", v);
-                }else {
+                    let mut t = format!("{:?}", v);
+                    let re = Regex::new(r"\((?<value>\w+)\)").unwrap();
+                    if let Some(captures) = re.captures(t.as_str()) {
+                        if let Some(value) = captures.get(1) {
+                            t = format!("{}", value.as_str());
+                        } 
+                    } 
+                    if t == format!("{}", INSTANCE_LIFETIME_THRESHOLD) {
+                        t = "INSTANCE_LIFETIME_THRESHOLD".to_string();
+                    } else if t == format!("{}", BALANCE_BUMP_AMOUNT) {
+                        t = "BALANCE_BUMP_AMOUNT".to_string();
+                    } else if t == format!("{}", BALANCE_LIFETIME_THRESHOLD) {
+                        t = "BALANCE_LIFETIME_THRESHOLD".to_string();
+                    } 
+                    write!(f, "{}", t)
+                } else {
                     write!(f, "{}", *val as i64)
                 }
             },

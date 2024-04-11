@@ -1,3 +1,6 @@
+use crate::cfg::CfgBuildError;
+use std::rc::Rc;
+use crate::fmt::CodeWriter;
 use crate::soroban::FunctionInfo;
 use super::wasm_adapter::{InitExpr, LoadError, Module};
 
@@ -12,7 +15,7 @@ pub struct Table {
     pub elements: Vec<TableElement>,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct Instance {
     module: Module,
     tables: Vec<Table>,
@@ -26,14 +29,30 @@ impl Instance {
             module,
         })
     }
+
+    pub fn load_file<P: AsRef<::std::path::Path>>(path: P) -> Rc<Self> {
+         match self::Instance::from_file(path) {
+            Ok(instance) => Rc::new(instance),
+            Err(error) => {
+                panic!("Wasm not loaded.");
+            }
+        }
+    }
     pub const fn module(&self) -> &Module {
         &self.module
     }
     pub fn tables(&self) -> &[Table] {
         &self.tables
     }
-     pub fn spec_fns(&self) -> &Vec<FunctionInfo> {
+
+    pub fn spec_fns(&self) -> &Vec<FunctionInfo> {
         &self.module().spec_fns()
+    }
+
+    pub fn decompile_function(&self, func_index: u32) -> Result<(), CfgBuildError>{
+        let mut printer = CodeWriter::printer(Rc::new(self.clone()), func_index);
+        printer.decompile_func(func_index as u32, false).unwrap();
+        Ok(())
     }
 }
 

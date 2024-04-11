@@ -101,7 +101,7 @@ fn write_store(f: &mut fmt::CodeWriter, fn_name: &'static str, target: &Expr, ex
     f.write(target);
     f.write(", ");
     f.write(expr);
-    f.write(")");
+    f.write(");");
 }
 
 fn write_assign_local(f: &mut fmt::CodeWriter, var: &Var, expr: &Expr) {
@@ -118,9 +118,9 @@ fn write_assign_local(f: &mut fmt::CodeWriter, var: &Var, expr: &Expr) {
         write!(f, "{}{}", "arg_", (var.index as u8 + b'a') as char);
     } else {
         if var.asserted {
-            write!(f, "let var_{}", (var.index as u8 + b'a') as char);
+            write!(f, "var_{}", (var.index as u8 + b'a') as char);
         }else {
-            write!(f, "let var_{}", (var.index as u8 + b'a') as char);
+            write!(f, "var_{}", (var.index as u8 + b'a') as char);
         }
     };
 
@@ -244,22 +244,20 @@ impl fmt::CodeDisplay for Stmt {
             }
             _ => (),
         }
-
         f.newline();
         match self {
-            Stmt::Unreachable => write!(f, "unreachable!();"),
+            Stmt::Unreachable => write!(f, "panic!(\"Stop execution.\");"),
             Stmt::Expr(expr) => {
                 f.write(expr);
-                f.write(";");
+                // ; adding after each expr. but we need to check what type is
+                f.write("");
             }
             Stmt::Return(result) => {
-                f.write("return ");
                 f.write(result);
-                f.write(";");
             }
             Stmt::ReturnVoid => {
-                f.write("return;");
-            }
+                f.suppress_newline();
+            }, 
             Stmt::While(cond, body, kind) => {
                 match kind {
                     LoopKind::While => {
@@ -338,11 +336,10 @@ impl fmt::CodeDisplay for Stmt {
                 f.dedent();
                 f.newline();
                 f.write("}");
-                f.newline();
                 if else_branch.len() == 1 {
                     match &else_branch[0] {
                         stmt @ Stmt::If(..) | stmt @ Stmt::IfElse(..) => {
-                            f.write("else ");
+                            f.write(" else ");
                             f.suppress_newline();
                             f.write(stmt);
                             return;
@@ -350,7 +347,7 @@ impl fmt::CodeDisplay for Stmt {
                         _ => (),
                     }
                 }
-                f.write("else {");
+                f.write(" else {");
                 f.indent();
                 f.write(&else_branch[..]);
                 f.dedent();
@@ -390,9 +387,10 @@ impl fmt::CodeDisplay for Stmt {
                 f.write(";");
             }
             Stmt::SetGlobal(index, expr) => {
-                write!(f, "global_{}", ((*index) as u8 + b'a') as char);
-                write_assign_global(f, *index, expr);
-                f.write(";");
+                //disabled
+                // write!(f, "global_{}", ((*index) as u8 + b'a') as char);
+                // write_assign_global(f, *index, expr);
+                // f.write(";");
             }
             Stmt::I32Store(target, expr) => write_store(f, "store_i32", target, expr),
             Stmt::I64Store(target, expr) => write_store(f, "store_i64", target, expr),

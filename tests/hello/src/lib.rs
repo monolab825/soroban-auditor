@@ -15,4 +15,8 @@ impl Contract {
       let virtual_env = &env;
       vec![virtual_env, symbol_short!("Hello"), to]
     }
+
+    pub fn test_internal(env:Env) {
+
+    }
 }

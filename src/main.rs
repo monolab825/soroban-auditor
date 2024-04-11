@@ -1,8 +1,6 @@
 use clap::{App, Arg};
-use std::rc::Rc;
 use auditor::cfg::CfgBuildError;
 use auditor::wasm_wrapper::wasm;
-use auditor::fmt::CodeWriter;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -23,21 +21,12 @@ fn main() {
         .get_matches();
 
     let file_path = args.value_of("file").unwrap();
-
-    let wasm = match wasm::Instance::from_file(file_path) {
-        Ok(instance) => Rc::new(instance),
-        Err(error) => {
-            eprintln!("{}", error);
-            return;
-        }
-    };
-
+    let wasm = wasm::Instance::load_file(file_path);
     let _show_graph = args.is_present("show-graph");
 
     if let Some(func_index) = args.value_of("function_name") {
         let func_index = func_index.parse().unwrap();
-        let mut printer = CodeWriter::printer(wasm, func_index);
-        match printer.decompile_func(func_index) {
+        match wasm.decompile_function(func_index) {
             Ok(()) => (),
             Err(CfgBuildError::NoSuchFunc) => eprintln!("No function with index {}", func_index),
             Err(CfgBuildError::FuncIsImported) => {
@@ -47,10 +36,15 @@ fn main() {
     } else {
         for (i, func) in wasm.module().functions().iter().enumerate() {
             if !func.is_imported() {
-                let mut printer = CodeWriter::printer(wasm.clone(), i as u32);
                 let name = func.name();
                 eprintln!("//Decompiling {}({})", name, i);
-                printer.decompile_func(i as u32).unwrap();
+                match wasm.decompile_function(i as u32) {
+                    Ok(()) => (),
+                    Err(CfgBuildError::NoSuchFunc) => eprintln!("No function with index {}", i),
+                    Err(CfgBuildError::FuncIsImported) => {
+                        eprintln!("Function {} is imported and can not be decompiled", i)
+                    }
+                }
                 println!();
             }
         }

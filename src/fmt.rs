@@ -1,9 +1,9 @@
+use std::rc::Rc;
 use crate::analysis;
 use crate::cfg::{Cfg, CfgBuildError};
-use crate::soroban::FunctionInfo;
+use crate::soroban::{get_function_body_hash, replace_function_body, FunctionInfo};
 use crate::ssa;
 use crate::structuring;
-use std::rc::Rc;
 
 use crate::ssa::Stmt;
 use crate::wasm_wrapper::wasm;
@@ -120,26 +120,30 @@ impl CodeWriter {
     }
 
     pub fn write(&mut self, fmt: impl CodeDisplay) {
-        fmt.fmt_code(self);
+        fmt.fmt_code(self)
+    }
+
+    pub fn string_func(&mut self, fmt: impl CodeDisplay) -> String {
+        fmt.create_str(self.wasm.clone(), 1)
     }
 
     pub fn write_fmt(&mut self, args: std::fmt::Arguments) {
         self.output.write_fmt(args);
     }
 
-    pub fn decompile_func(&mut self, func_index: u32) -> Result<(), CfgBuildError> {
+    pub fn decompile_func(&mut self, func_index: u32, is_call: bool) -> Result<(), CfgBuildError> {
         let mut cfg = Cfg::build(self.wasm.clone(), func_index)?;
         let mut def_use_map = ssa::transform_to_ssa(&mut cfg);
         analysis::propagate_expressions(&mut cfg, &mut def_use_map);
         analysis::eliminate_dead_code(&mut cfg, &mut def_use_map);
         ssa::transform_out_of_ssa(&mut cfg);
-        //println!("{}", cfg.dot_string());
+
         let (_decls, code) = structuring::structure(cfg);
-        CodeWriter::printer(self.wasm.clone(), func_index).write_func(&code);
+        CodeWriter::printer(self.wasm.clone(), func_index).write_func(&code, is_call);
         Ok(())
     }
 
-    pub fn write_func(&mut self, code: &[Stmt]) {
+    pub fn write_func(&mut self, code: &[Stmt], is_call:bool) {
         let func = self.func();
         let ret_type = match func.return_type() {
             Some(type_ret) => {
@@ -149,39 +153,36 @@ impl CodeWriter {
             None => "".to_string(),
         };
 
+        let env_arg = "env";
         let (params, return_type) = match func.spec_fn() {
             Some(spec) if spec != &FunctionInfo::default() => {
-                let params = spec
-                    .inputs()
-                    .iter()
-                    .enumerate()
-                    .map(|(_i, param)| format!("{}: {}", param.name(), param.type_ident().type_str()))
-                    .collect::<Vec<_>>()
-                    .join(", ");
+                let mut params_vec = vec![format!("{}: {}", env_arg, "Env")];
+                params_vec.extend(spec.inputs().iter().enumerate().map(|(_i, param)| {
+                    format!("{}: {}", param.name(), param.type_ident().type_str())
+                }));
+                let params = params_vec.join(", ");
                 let output = spec.output();
                 let return_type = output.map_or(ret_type, |o| o.type_ident().type_str().to_string());
                 (params, return_type)
             }
             _ => {
-                let params = func
-                    .params()
-                    .iter()
-                    .enumerate()
-                    .map(|(i, t)| format!("{} arg_{}", t, (i as u8 + b'a') as char))
-                    .collect::<Vec<_>>()
-                    .join(", ");
+                let mut params_vec = vec![format!("{}: {}", env_arg, "Env")];
+                params_vec.extend(func.params().iter().enumerate().map(|(i, t)| {
+                    format!("arg_{}: {} ", (i as u8 + b'a') as char, t)
+                }));
+                let params = params_vec.join(", ");
                 (params, ret_type)
             }
         };
         let func_header = if return_type.len() > 0 {
-            format!("pub fn {}(env: Env, {}) -> {} {{", func.name(), params, return_type)
+            format!("pub fn {}({}) -> {} {{", func.name(), params, return_type)
         } else {
             format!("pub fn {}({}) {{", func.name(), params)
         };
 
         self.write(func_header.as_str());
         self.indent();
-        self.write(&code[..]);
+        self.write_body(&code[..]);
         self.dedent();
         self.newline();
         self.write("}");
@@ -205,5 +206,26 @@ impl CodeWriter {
             Output::Str(s) => s,
             _ => String::from(""),
         }
+    }
+
+    pub fn write_body(&mut self, code: &[Stmt]) {
+        let code_str = self.string_func(&code[..]);
+        match get_function_body_hash(code_str){
+            Ok(tlsh) => {
+                self.newline();
+                print!("//{}", tlsh.hash());
+                match replace_function_body(&tlsh.hash()) {
+                    Some(body) => {
+                        self.newline();
+                        println!("{}", body);
+                        self.suppress_newline();
+                    },
+                    None => {
+                        self.write(&code[..]);
+                    }
+                };
+            },
+            Err(e) => ()
+        };
     }
 }
