@@ -1,0 +1,22 @@
+[
+    {
+        "hash": "T1BDE0CD514CB791841F2F18184F6F6907A0D54D536CCCE840FF0D99017F955EE7615A5B",
+        "body": "let util = TokenUtils::new(&env);\nutil.metadata().get_metadata().symbol",
+        "pattern": "empty"
+    },
+    {
+        "hash": "T147E0CD514CB791851F2F28184F6FA90760D54D536CCCE840FF0D99017FA45EA7615A5B",
+        "body": "let util = TokenUtils::new(&env);\n\tutil.metadata().get_metadata().name",
+        "pattern": "empty"
+    },
+    {
+        "body": "let util = TokenUtils::new(&env);\n\tutil.metadata().get_metadata().decimals",
+        "hash": "T1B4E026410DB391C01F2F28084E6F680360E55D936CDDE840FF0D55003FA45AA7A14AAA",
+        "pattern": "empty"
+    },
+    {
+        "hash": "T1AAB09BC05C78D9555B944298FD0965841ABD0C032CAC5C4CD56CF8D53799AC6C54935",
+        "pattern": "var_a=global_a-;var_=global_a-16;store_i64(var_a+8,);var_=vec.vec_new_from_linear_memory(extend_u_i64(var_+)<<32|U32(0),U32()",
+        "body": "vec![&env, {args}]"
+    }
+]

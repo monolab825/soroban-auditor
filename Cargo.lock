@@ -50,6 +50,7 @@ name = "auditor"
 version = "0.1.1"
 dependencies = [
  "clap",
+ "lcs",
  "parity-wasm",
  "regex",
  "replace_with",
@@ -618,6 +619,12 @@ name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
+
+[[package]]
+name = "lcs"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "70048d97b51d107a6cf295d42210d298f0eb7d37f0518b88c816a74b8ce15f41"
 
 [[package]]
 name = "libc"
