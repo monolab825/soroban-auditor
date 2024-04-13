@@ -1,7 +1,8 @@
 use std::rc::Rc;
 use crate::analysis;
 use crate::cfg::{Cfg, CfgBuildError};
-use crate::soroban::{get_function_body_hash, replace_function_body, FunctionInfo};
+use crate::soroban::sdk_linker::search_for_patterns;
+use crate::soroban::FunctionInfo;
 use crate::ssa;
 use crate::structuring;
 
@@ -182,9 +183,9 @@ impl CodeWriter {
 
         self.write(func_header.as_str());
         self.indent();
+        self.newline();
         self.write_body(&code[..]);
         self.dedent();
-        self.newline();
         self.write("}");
         self.newline();
     }
@@ -210,22 +211,11 @@ impl CodeWriter {
 
     pub fn write_body(&mut self, code: &[Stmt]) {
         let code_str = self.string_func(&code[..]);
-        match get_function_body_hash(code_str){
-            Ok(tlsh) => {
-                self.newline();
-                print!("//{}", tlsh.hash());
-                match replace_function_body(&tlsh.hash()) {
-                    Some(body) => {
-                        self.newline();
-                        println!("{}", body);
-                        self.suppress_newline();
-                    },
-                    None => {
-                        self.write(&code[..]);
-                    }
-                };
-            },
-            Err(e) => ()
-        };
+        let replaced_body = search_for_patterns(&code_str);
+        if let Some(replaced_body_value) = replaced_body {
+            println!("{}", replaced_body_value);
+        } else {
+            self.write(&code[..]);
+        }
     }
 }

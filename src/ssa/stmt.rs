@@ -246,7 +246,7 @@ impl fmt::CodeDisplay for Stmt {
         }
         f.newline();
         match self {
-            Stmt::Unreachable => write!(f, "panic!(\"Stop execution.\");"),
+            Stmt::Unreachable => write!(f, "panic!(\"stop\");"),
             Stmt::Expr(expr) => {
                 f.write(expr);
                 // ; adding after each expr. but we need to check what type is

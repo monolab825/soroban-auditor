@@ -1,0 +1,42 @@
+[[patterns]]
+hash = "T1AAB09BC05C78D9555B944298FD0965841ABD0C032CAC5C4CD56CF8D53799AC6C54935"
+pattern = """
+var_d = buf.string_new_from_linear_memory(1048576, 5);
+store_i64(arg_b + 8, var_d);
+var_e = extend_u_i64(arg_b + 8);
+vec.vec_new_from_linear_memory(var_e << 32 | 0, 1)
+"""
+body = "vec![&env]\n"
+
+
+[[patterns]]
+hash = "T1AAB09BC05C78D9555B944298FD0965841ABD0C032CAC5C4CD56CF8D53799AC6C54935"
+pattern = """
+var_d = ledger.has_contract_data(METADATA, Void);
+if var_d == True {
+    var_e = ledger.get_contract_data(METADATA, Void);
+    for ; arg_a == 24; arg_b = arg_a + 8 {
+        store_i64(arg_b + 8 + arg_a, Void);
+    }
+    if (var_e & 255) == Map(obj#0) {
+        var_f = extend_u_i64(arg_b + 8);
+        map.map_unpack_to_linear_memory(var_e, 1048596, var_f << 32 | 0, 3);
+        var_g = load_i64(arg_b + 8);
+        if (var_g & 255) == 0 {
+            var_h = load_i64(arg_b + 16);
+            if (var_h & 255) == String(obj#0) {
+                var_i = load_i64(arg_b + 24);
+                if (var_i & 255) == String(obj#0) {
+                    store_i64(arg_b + 24, var_i);
+                    store_i64(arg_b + 16, var_h);
+                    store_i64(arg_b + 8, var_g & -4294967296 | 0);
+                    var_j = map.map_new_from_linear_memory(1048596, var_f << 32 | 0, 3);
+                    var_j
+                }
+            }
+        }
+    }
+}
+"""
+body = "let util = TokenUtils::new(&env)\nutil.metadata().get_metadata()"
+
