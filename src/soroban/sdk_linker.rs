@@ -25,7 +25,7 @@ pub fn search_for_patterns(function_body: &str) -> Option<String> {
         Ok(pattern_config) => {
             for pattern in pattern_config.patterns {
                 if function_body.len() > 100 {
-                    match check_lcs_patterns(&replaced_body, &pattern.pattern) {
+                    match get_lcs_pattern(&replaced_body, &pattern.pattern) {
                         Ok(f_body_lcs) => {
                             if f_body_lcs.len() > 50 {
                                 match get_sequence_tlsh(&f_body_lcs) {
@@ -33,7 +33,7 @@ pub fn search_for_patterns(function_body: &str) -> Option<String> {
                                         match get_sequence_tlsh(&pattern.pattern) {
                                             Ok(pattern_tlsh) => {
                                                 let diff = pattern_tlsh.diff(&lcs_tlsh, false);
-                                                if diff < 190 {
+                                                if diff < 200 {
                                                    replaced_body = replace_sequence(
                                                         &replaced_body,
                                                         &pattern.pattern,
@@ -81,7 +81,7 @@ pub fn get_sequence_tlsh(code: &String) -> Result<Tlsh, TlshError> {
     builder.build()
 }
 
-pub fn check_lcs_patterns(function_body: &str, pattern: &str) -> Result<String, Box<dyn Error>> {
+pub fn get_lcs_pattern(function_body: &str, pattern: &str) -> Result<String, Box<dyn Error>> {
     let body: Vec<_> = function_body.chars().collect();
     let pat: Vec<_> = pattern.chars().collect();
     let table = LcsTable::new(&body, &pat);
@@ -107,7 +107,7 @@ fn replace_sequence(body: &str, sequence_to_replace: &str, replacement_sequence:
         body_index += 1;
     }
 
-    if min_distance < 400 {
+    if min_distance < 3 {
         result.push_str(&body[..found_index]);
         result.push_str(replacement_sequence);
         result.push_str(&body[found_index + sequence_length..]);
